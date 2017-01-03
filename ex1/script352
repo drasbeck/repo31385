@@ -1,0 +1,8 @@
+drive @v .3 :($drivendist > 1)
+turn 90
+drive @v .3 :($drivendist > .3)
+turn 90
+drive @v .3 :($drivendist > 1)
+turn 90
+drive @v .3 :($drivendist > .3)
+stop
