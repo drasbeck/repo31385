@@ -1,1 +1,2 @@
 followline "br" @v .3 :($irdistfrontmiddle < .4)
+stop

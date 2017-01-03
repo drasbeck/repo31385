@@ -1,1 +1,2 @@
 followline "bl" @v .3 :($crossingblackline > 0)
+stop
