@@ -1,0 +1,22 @@
+% calibrate IR-dist
+% fwd .015
+% wait .2
+logvar = 0
+dist = 75
+log "logvar" "$irl" "$irfl" "$irfm" "$irfr" "$irr"
+n = 6
+label "start"
+logvar = dist
+wait 1
+logvar = 0
+
+fwd .1 @v.1
+n = n - 1
+dist = dist - 10
+logvar = dist
+if (n > 0) "start"
+
+wait 1
+% and the last fwd because it didn't work in the loop
+% fwd .1
+% wait 1
