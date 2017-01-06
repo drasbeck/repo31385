@@ -1,7 +1,4 @@
-/*
- * An example SMR program.
- *
- */
+/*** GROUP 13 SMR PROGRAM ***/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,15 +23,14 @@
 #define DATA_LOG_ROW 50000
 #define DATA_LOG_COL 17
 
-#define MAX_DELTA_VEL 0.005
-#define MAX_DECELERATION 0.5
+#define MAX_DELTA_VEL 0.0025
+#define MAX_DECELERATION 0.1
 
-#define K_SPEED 0.0
+#define K_SPEED 0.01
 
 struct xml_in *xmldata;
 struct xml_in *xmllaser;
-struct
-{
+struct {
   double x, y, z, omega, phi, kappa, code, id, crc;
 } gmk;
 double visionpar[10];
@@ -81,9 +77,9 @@ getoutputref(const char *sym_name, symTableElement *tab)
 #define CORRECTION 1.0
 */
 
-#define WHEEL_SEPARATION 0.264190
+#define WHEEL_SEPARATION 0.261930
 #define DELTA_M 0.000103
-#define CORRECTION 0.997080
+#define CORRECTION 1.000449
 
 #define CL (DELTA_M / CORRECTION)
 #define CR (DELTA_M * CORRECTION)
@@ -170,9 +166,9 @@ int main()
 {
   int running, arg, time = 0, index = 0, i, j, k;
   int n = 0;
+  double angle = 0;
   double dist = 0;
   //double vel=0;
-  double angle = 0;
   double data_log[DATA_LOG_ROW][DATA_LOG_COL] = {{0}};
   FILE *data_file;
 
@@ -310,7 +306,7 @@ int main()
     {
     case ms_init:
       n = 4;
-      dist = 1;
+      dist = 3.0;
       angle = -M_PI / 2.0;
       mission.state = ms_fwd;
       break;
@@ -340,7 +336,7 @@ int main()
     /*switch (mission.state) {
      
      case ms_init:
-       dist=2.00; vel=0.2;
+       dist=1.00; vel=0.3;
        mission.state= ms_fwd;      
      break;
      
@@ -435,228 +431,171 @@ void reset_odo(odotype *p)
 
 void update_odo(odotype *p)
 {
+
   int delta;
   double delta_right_pos, delta_left_pos;
 
   delta = p->right_enc - p->right_enc_old;
-  if (delta > 0x8000)
-    delta -= 0x10000;
-  else if (delta < -0x8000)
-    delta += 0x10000;
+  if (delta > 0x8000) {delta -= 0x10000;} else if (delta < -0x8000) {delta += 0x10000;}
   p->right_enc_old = p->right_enc;
   delta_right_pos = delta * p->cr;
   p->right_pos += delta_right_pos;
 
   delta = p->left_enc - p->left_enc_old;
-  if (delta > 0x8000)
-    delta -= 0x10000;
-  else if (delta < -0x8000)
-    delta += 0x10000;
+  if (delta > 0x8000) {delta -= 0x10000;} else if (delta < -0x8000) {delta += 0x10000;}
   p->left_enc_old = p->left_enc;
   delta_left_pos = delta * p->cl;
   p->left_pos += delta_left_pos;
 
   p->x += (delta_right_pos + delta_left_pos) * cos(p->th) / 2.0;
-
   p->y += (delta_right_pos + delta_left_pos) * sin(p->th) / 2.0;
-
   p->th += (delta_right_pos - delta_left_pos) / p->w;
+  /*if (p->th > 0) {p->th = fmod(p->th + M_PI, 2.0 * M_PI) - M_PI;} else {p->th = fmod(p->th - M_PI, 2.0 * M_PI) + M_PI;}*/
+  /*printf("(%f)(%f)(%f)\n", p->th, p->x, p->y);*/
 
-  //if (p->th > 0) {p->th = fmod(p->th + M_PI, 2.0 * M_PI) - M_PI;} else {p->th = fmod(p->th - M_PI, 2.0 * M_PI) + M_PI;}
-
-  //printf("(%f)(%f)(%f)\n", p->th, p->x, p->y);
 }
 
-void update_motcon(motiontype *p)
-{
-  
+void update_motcon(motiontype *p) {
+
   double max_speed, delta_speed;
 
-  if (p->cmd != 0)
-  {
+  if (p->cmd != 0) {
 
     p->finished = 0;
-    switch (p->cmd)
-    {
-    case mot_stop:
-      p->curcmd = mot_stop;
-      break;
-    case mot_move:
-      p->startpos = (p->left_pos + p->right_pos) / 2;
-      p->curcmd = mot_move;
-      break;
 
-    /*case mot_turn:
-         if (p->angle > 0) 
-	    p->startpos=p->right_pos;
-	 else
-	    p->startpos=p->left_pos;
-         p->curcmd=mot_turn;
-       break;*/
+    switch (p->cmd) {
 
-    case mot_turn:
-      p->th_ref += p->angle; 
-      p->startth = p->th;
-      p->curcmd = mot_turn;
-      break;
+      case mot_stop:
+        p->curcmd = mot_stop;
+        break;
+
+      case mot_move:
+        p->startpos = (p->left_pos + p->right_pos) / 2;
+        p->curcmd = mot_move;
+        break;
+
+      case mot_turn:
+        p->th_ref += p->angle; 
+        p->startth = p->th;
+        p->curcmd = mot_turn;
+        break;
+
     }
 
     p->cmd = 0;
+
   }
 
-  switch (p->curcmd)
-  {
+  switch (p->curcmd) {
     
-  case mot_stop:
-    p->motorspeed_l = 0;
-    p->motorspeed_r = 0;
-    break;
-    
-  case mot_move:
+    case mot_stop:
 
-    if ((p->right_pos + p->left_pos) / 2.0 - p->startpos > p->dist) {
-      
-      p->finished = 1;
       p->motorspeed_l = 0;
       p->motorspeed_r = 0;
+
+      break;
       
-    } else {
+    case mot_move:
 
-      if (p->speedcmd - p->motorspeed_l > MAX_DELTA_VEL) {p->motorspeed_l += MAX_DELTA_VEL;} else {p->motorspeed_l = p->speedcmd;}
-      if (p->speedcmd - p->motorspeed_r > MAX_DELTA_VEL) {p->motorspeed_r += MAX_DELTA_VEL;} else {p->motorspeed_r = p->speedcmd;}
-
-      max_speed = sqrt(2.0 * MAX_DECELERATION * (p->dist - (p->right_pos + p->left_pos) / 2.0 - p->startpos));
-      if (p->motorspeed_l > max_speed) {p->motorspeed_l = max_speed;}
-      if (p->motorspeed_r > max_speed) {p->motorspeed_r = max_speed;}
-      
-      delta_speed = K_SPEED * (p->th_ref - p->th);
-      printf("(%f)(%f)\n", delta_speed, p->th_ref);
-      p->motorspeed_l -= delta_speed;
-      p->motorspeed_r += delta_speed;
-      
-    }
-    
-    break;
-
-  case mot_turn:
-    if (p->angle > 0)
-    {
-      if (p->th - p->startth < p->angle)
-      {
-
-        if (p->speedcmd + p->motorspeed_l > MAX_DELTA_VEL)
-        {
-          p->motorspeed_l -= MAX_DELTA_VEL;
-        }
-        else
-        {
-          p->motorspeed_l = -p->speedcmd;
-        }
-        if (p->speedcmd - p->motorspeed_r > MAX_DELTA_VEL)
-        {
-          p->motorspeed_r += MAX_DELTA_VEL;
-        }
-        else
-        {
-          p->motorspeed_r = p->speedcmd;
-        }
-
-        max_speed = sqrt(2.0 * MAX_DECELERATION * fabs(p->angle - (p->th - p->startth)) * p->w / 2.0);
-        if (-p->motorspeed_l > max_speed)
-        {
-          p->motorspeed_l = -max_speed;
-        }
-        if (p->motorspeed_r > max_speed)
-        {
-          p->motorspeed_r = max_speed;
-        }
-      }
-      else
-      {
-        printf("(%f)(%f)\n", p->th - p->startth, p->angle);
-        p->motorspeed_r = 0;
-        p->motorspeed_l = 0;
+      if ((p->right_pos + p->left_pos) / 2.0 - p->startpos > p->dist) {
+        
         p->finished = 1;
-      }
-    }
-    else
-    {
-      if (p->th - p->startth > p->angle)
-      {
-
-        if (p->speedcmd - p->motorspeed_l > MAX_DELTA_VEL)
-        {
-          p->motorspeed_l += MAX_DELTA_VEL;
-        }
-        else
-        {
-          p->motorspeed_l = p->speedcmd;
-        }
-        if (p->speedcmd + p->motorspeed_r > MAX_DELTA_VEL)
-        {
-          p->motorspeed_r -= MAX_DELTA_VEL;
-        }
-        else
-        {
-          p->motorspeed_r = -p->speedcmd;
-        }
-
-        max_speed = sqrt(2.0 * MAX_DECELERATION * fabs(p->angle - (p->th - p->startth)) * p->w / 2.0);
-        if (p->motorspeed_l > max_speed)
-        {
-          p->motorspeed_l = max_speed;
-        }
-        if (-p->motorspeed_r > max_speed)
-        {
-          p->motorspeed_r = -max_speed;
-        }
-      }
-      else
-      {
-        p->motorspeed_r = 0;
         p->motorspeed_l = 0;
-        p->finished = 1;
+        p->motorspeed_r = 0;
+        
+      } else {
+
+        if (p->speedcmd - p->motorspeed_l > MAX_DELTA_VEL) {p->motorspeed_l += MAX_DELTA_VEL;} else {p->motorspeed_l = p->speedcmd;}
+        if (p->speedcmd - p->motorspeed_r > MAX_DELTA_VEL) {p->motorspeed_r += MAX_DELTA_VEL;} else {p->motorspeed_r = p->speedcmd;}
+
+        max_speed = sqrt(2.0 * MAX_DECELERATION * (p->dist - (p->right_pos + p->left_pos) / 2.0 - p->startpos));
+        if (p->motorspeed_l > max_speed) {p->motorspeed_l = max_speed;}
+        if (p->motorspeed_r > max_speed) {p->motorspeed_r = max_speed;}
+        
+        delta_speed = K_SPEED * (p->th_ref - p->th);
+        /*printf("(%f)(%f)\n", delta_speed, p->th_ref);*/
+        p->motorspeed_l -= delta_speed;
+        p->motorspeed_r += delta_speed;
+        
       }
-    }
-    break;
+      
+      break;
+
+    case mot_turn:
+
+      if (p->angle > 0) {
+
+        if (p->th - p->startth < p->angle) {
+
+          if (p->speedcmd + p->motorspeed_l > MAX_DELTA_VEL) {p->motorspeed_l -= MAX_DELTA_VEL;} else {p->motorspeed_l = -p->speedcmd;}
+          if (p->speedcmd - p->motorspeed_r > MAX_DELTA_VEL) {p->motorspeed_r += MAX_DELTA_VEL;} else {p->motorspeed_r = p->speedcmd;}
+
+          max_speed = sqrt(2.0 * MAX_DECELERATION * fabs(p->angle - (p->th - p->startth)) * p->w / 2.0);
+          if (-p->motorspeed_l > max_speed) {p->motorspeed_l = -max_speed;}
+          if (p->motorspeed_r > max_speed) {p->motorspeed_r = max_speed;}
+
+        } else {
+
+          p->motorspeed_r = 0;
+          p->motorspeed_l = 0;
+          p->finished = 1;
+
+        }
+
+      } else {
+
+        if (p->th - p->startth > p->angle) {
+
+          if (p->speedcmd - p->motorspeed_l > MAX_DELTA_VEL) {p->motorspeed_l += MAX_DELTA_VEL;} else {p->motorspeed_l = p->speedcmd;}
+          if (p->speedcmd + p->motorspeed_r > MAX_DELTA_VEL) {p->motorspeed_r -= MAX_DELTA_VEL;} else {p->motorspeed_r = -p->speedcmd;}
+
+          max_speed = sqrt(2.0 * MAX_DECELERATION * fabs(p->angle - (p->th - p->startth)) * p->w / 2.0);
+          if (p->motorspeed_l > max_speed) {p->motorspeed_l = max_speed;}
+          if (-p->motorspeed_r > max_speed) {p->motorspeed_r = -max_speed;}
+
+        } else {
+
+          p->motorspeed_r = 0;
+          p->motorspeed_l = 0;
+          p->finished = 1;
+
+        }
+
+      }
+
+      break;
+
   }
+
 }
 
-int fwd(double dist, double speed, int time)
-{
-  if (time == 0)
-  {
+int fwd(double dist, double speed, int time) {
+  if (time == 0) {
     mot.cmd = mot_move;
     mot.speedcmd = speed;
     mot.dist = dist;
     return 0;
-  }
-  else
+  } else {
     return mot.finished;
+  }
 }
 
-int turn(double angle, double speed, int time)
-{
-  if (time == 0)
-  {
+int turn(double angle, double speed, int time) {
+  if (time == 0) {
     mot.cmd = mot_turn;
     mot.speedcmd = speed;
     mot.angle = angle;
     return 0;
-  }
-  else
+  } else {
     return mot.finished;
+  }
 }
 
-void sm_update(smtype *p)
-{
-  if (p->state != p->oldstate)
-  {
+void sm_update(smtype *p) {
+  if (p->state != p->oldstate) {
     p->time = 0;
     p->oldstate = p->state;
-  }
-  else
-  {
+  } else {
     p->time++;
   }
 }
