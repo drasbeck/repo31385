@@ -27,7 +27,7 @@
 #define MAX_DECELERATION 0.5
 
 #define K_SPEED 0.01
-#define K_FOLLOW_LINE -0.3
+#define K_FOLLOW_LINE -.35
 //#define K_FOLLOW_LINE 0.2
 
 struct xml_in *xmldata;
@@ -349,7 +349,7 @@ int main()
       break;
     }*/
 
-    /*
+/*
     switch (mission.state) {
      
      case ms_init:
@@ -365,14 +365,14 @@ int main()
        mot.cmd=mot_stop;
        running=0;
      break;
-     */
-    
-    }
+
+
+    }*/
     
     switch (mission.state) {
       
       case ms_init:
-	dist=2.00; vel=0.3;
+	dist=99.00; vel=0.3;
 	mission.state= ms_followline;      
       break;
       
@@ -600,7 +600,13 @@ void update_motcon(motiontype *p) {
         delta_speed = K_FOLLOW_LINE * line_center();
         p->motorspeed_l -= delta_speed;
         p->motorspeed_r += delta_speed;
-        
+
+        max_speed = sqrt(2.0 * MAX_DECELERATION * (p->dist - (p->right_pos + p->left_pos) / 2.0 - p->startpos));
+        if (p->motorspeed_l < -p->speedcmd) {p->motorspeed_l = -p->speedcmd;}
+        if (p->motorspeed_r < -p->speedcmd) {p->motorspeed_r = -p->speedcmd;}
+
+
+        printf("dist(%f), l(%f), r(%f), center(%f), deltaS(%f)\n", ((p->right_pos + p->left_pos) / 2.0 - p->startpos), p->motorspeed_l, p->motorspeed_r, line_center(), delta_speed);
       }
       
       break;
@@ -727,11 +733,11 @@ double line_center(void) {
   for (i = 0; i < 8; i++) {
     intensity = (data[i] - min) / (max - min);
     intensity = 1 - intensity;
-    printf("%f ", intensity);
+    //printf("%f ", intensity);
     num += x[i] * intensity;
     den += intensity;
   }
-  printf("\n");
+  //printf("\n");
 
   return num / den;
 
