@@ -38,7 +38,6 @@ struct {
 } gmk;
 double visionpar[10];
 double laserpar[10];
-double line_c = 0.0;
 
 void serverconnect(componentservertype *s);
 void xml_proc(struct xml_in *x);
@@ -146,6 +145,7 @@ int followline(char line_color, double dist, double speed, int time);
 int turn(double angle, double speed, int time);
 
 double line_center(char line_color);
+double ir_distance(int ir_number);
 
 typedef struct {
   int state, oldstate;
@@ -397,6 +397,9 @@ int main()
     }
     for (i = 0; i < 8; i++) {
       fprintf(log_file_p, "%g,", (double)(linesensor->data[i]));
+    }
+    for (i = 0; i < 5; i++) {
+      fprintf("%g,", ir_distance(i));
     }
     fprintf(log_file_p, "\n");
 
@@ -686,4 +689,15 @@ double line_center(char line_color) {
 
   return num / den;
 
+}
+
+/*** IR SENSOR FUNCTIONS ***/
+
+double ir_distance(int ir_number) {
+  
+  const double ka[5] = {0.0000, 13.5608, 13.4456, 14.0818, 0.0000};
+  const double kb[5] = {0.0000, 38.1084, 64.3544, 55.2223, 0.0000};
+  
+  return ka[ir_number] / ((double)(irsensor->data[ir_number] - kb[ir_number]));
+  
 }

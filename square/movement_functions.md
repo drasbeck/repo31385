@@ -1,7 +1,7 @@
 # movement
-*follow_line (args: left, middle, right, black/white, dist, speed)
-*follow_wall (args: left, right, distance, stopIfBlocked)
-*crossingblackline
+* follow_line (args: left, middle, right, black/white, dist, speed)
+* follow_wall (args: left, right, distance, stopIfBlocked)
+* crossingblackline
 
 
 # sensors
@@ -10,5 +10,5 @@
 
 
 # if need be
-turnr
-stop
+* turnr
+* stop
