@@ -1,3 +1,4 @@
+
 /*** GROUP 13 SMR PROGRAM ***/
 
 #include <stdio.h>
@@ -26,9 +27,9 @@
 #define MAX_DELTA_VEL 0.005
 #define MAX_DECELERATION 0.5
 
-#define K_SPEED 0.01
-#define K_FOLLOW_LINE -0.3
-//#define K_FOLLOW_LINE 0.2
+#define KP_FWD 0.01
+#define KP_FOLLOWLINE 0.2
+#define KD_FOLLOWLINE 0.001
 
 struct xml_in *xmldata;
 struct xml_in *xmllaser;
@@ -135,6 +136,7 @@ typedef struct
   int finished;
   // internal variables
   double startpos, startth;
+  double dspeed, dspeed_old;
 } motiontype;
 
 enum {
@@ -349,7 +351,7 @@ int main()
       break;
     }*/
 
-    switch (mission.state) {
+    /*switch (mission.state) {
      
      case ms_init:
        dist=2.00; vel=0.3;
@@ -365,12 +367,12 @@ int main()
        running=0;
      break;
     
-    }/*
+    }*/
     
     switch (mission.state) {
       
       case ms_init:
-	dist=2.00; vel=0.3;
+	dist=8.00; vel=0.3;
 	mission.state= ms_followline;      
       break;
       
@@ -383,7 +385,7 @@ int main()
 	running=0;
       break;
       
-    }*/
+    }
 
     /*data_log[index][0] = index;
     data_log[index][1] = mission.time;
@@ -449,11 +451,7 @@ int main()
   exit(0);
 }
 
-/*
- * Routines to convert encoder values to positions.
- * Encoder steps have to be converted to meters, and
- * roll-over has to be detected and corrected.
- */
+/*** ODOMETRY FUNCTIONS ***/
 
 void reset_odo(odotype *p)
 {
@@ -488,16 +486,14 @@ void update_odo(odotype *p)
   p->x += (delta_right_pos + delta_left_pos) * cos(p->th) / 2.0;
   p->y += (delta_right_pos + delta_left_pos) * sin(p->th) / 2.0;
   p->th += (delta_right_pos - delta_left_pos) / p->w;
-  /*if (p->th > 0) {p->th = fmod(p->th + M_PI, 2.0 * M_PI) - M_PI;} else {p->th = fmod(p->th - M_PI, 2.0 * M_PI) + M_PI;}*/
-  /*printf("(%f)(%f)(%f)\n", p->th, p->x, p->y);*/
 
 }
 
+/*** MOTION FUNCTIONS ***/
+
 void update_motcon(motiontype *p) {
 
-  int i;
   double max_speed, delta_speed;
-  double line_c_num = 0, line_c_den = 0, line_i = 0;
 
   if (p->cmd != 0) {
 
@@ -517,6 +513,8 @@ void update_motcon(motiontype *p) {
       case mot_followline:
         p->startpos = (p->left_pos + p->right_pos) / 2;
         p->curcmd = mot_followline;
+	p->dspeed = 0;
+	p->dspeed_old = 0;
         break;
 
       case mot_turn:
@@ -557,8 +555,7 @@ void update_motcon(motiontype *p) {
         if (p->motorspeed_l > max_speed) {p->motorspeed_l = max_speed;}
         if (p->motorspeed_r > max_speed) {p->motorspeed_r = max_speed;}
         
-        delta_speed = K_SPEED * (p->th_ref - p->th);
-        /*printf("(%f)(%f)\n", delta_speed, p->th_ref);*/
+        delta_speed = KP_FWD * (p->th_ref - p->th);
         p->motorspeed_l -= delta_speed;
         p->motorspeed_r += delta_speed;
         
@@ -576,28 +573,14 @@ void update_motcon(motiontype *p) {
         
       } else {
 
-        if (p->speedcmd - p->motorspeed_l > MAX_DELTA_VEL) {p->motorspeed_l += MAX_DELTA_VEL;} else {p->motorspeed_l = p->speedcmd;}
-        if (p->speedcmd - p->motorspeed_r > MAX_DELTA_VEL) {p->motorspeed_r += MAX_DELTA_VEL;} else {p->motorspeed_r = p->speedcmd;}
-
-        max_speed = sqrt(2.0 * MAX_DECELERATION * (p->dist - (p->right_pos + p->left_pos) / 2.0 - p->startpos));
-        if (p->motorspeed_l > max_speed) {p->motorspeed_l = max_speed;}
-        if (p->motorspeed_r > max_speed) {p->motorspeed_r = max_speed;}
+        p->motorspeed_l = p->speedcmd;
+        p->motorspeed_r = p->speedcmd;
         
-	line_c_num = 0; line_c_den = 0;
-	for (i = 0; i < 8; i++) {
-	  line_i = line_calib[0][i] + line_calib[1][i] * (double)(linesensor->data[i]);
-	  line_i = 1 - line_i;
-	  //printf("(%f)", line_i);
-	  line_c_num += line_dist[i] * line_i;
-	  line_c_den += line_i;
-	}
-	//printf("\n");
-	line_c = line_c_num / line_c_den;
-	//printf("%f\n", line_center());
-        
-        delta_speed = K_FOLLOW_LINE * line_center();
-        p->motorspeed_l -= delta_speed;
-        p->motorspeed_r += delta_speed;
+	p->dspeed_old = p->dspeed;
+        p->dspeed = KP_FOLLOWLINE * line_center();
+	p->dspeed += KD_FOLLOWLINE * (p->dspeed_old - p->dspeed);
+        p->motorspeed_l -= p->dspeed;
+        p->motorspeed_r += p->dspeed;
         
       }
       
@@ -693,43 +676,23 @@ void sm_update(smtype *p) {
   }
 }
 
-/*** DATA FUNCTIONS ***/
+/*** LINE SENSOR FUNCTIONS ***/
 
 double line_center(void) {
 
   int i;
-  double min, max, intensity;
-  double num = 0, den = 0;
-  const double x[8] = {0.0630, 0.0450, 0.0270, 0.0090, -0.0090, -0.0270, -0.0450, -0.0630};
-  double data[8] = { 0.0 };
-  const double calib[2][8] = {
-    {-5.4427e+00, -4.7939e+00, -3.1359e+00, -5.0336e+00, -5.2274e+00, -5.2536e+00, -4.6456e+00, -1.7980e+00},
-    {1.0969e-01,  9.5879e-02,  6.2579e-02, 1.0121e-01, 1.0566e-01, 1.0561e-01, 9.3687e-02, 3.4199e-02}
-  };
-  
-  for (i = 0; i < 8; i++) {
-    data[i] = calib[0][i] + calib[1][i] * (double)(linesensor->data[i]);
-  }
-
-  min = data[0];
-  max = data[0];
-  for (i = 1; i < 8; i++) {
-    if (data[i] < min) {
-      min = data[i];
-    }
-    if (data[i] > max) {
-      max = data[i];
-    }
-  }
+  double intensity;
+  double num = 0.0, den = 0.0;
+  const double min[8] = {49.7129, 50.0733, 50.1517, 49.8031, 49.5481, 49.8077, 49.6494, 52.5971};
+  const double max[8] = {58.6394, 60.3545, 66.0494, 59.5392, 58.8640, 59.1455, 60.1955, 81.7896};
+  /*const double min[8] = {85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000};
+  const double max[8] = {255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000};*/
 
   for (i = 0; i < 8; i++) {
-    intensity = (data[i] - min) / (max - min);
-    intensity = 1 - intensity;
-    printf("%f ", intensity);
-    num += x[i] * intensity;
+    intensity = 1.0 - ((double)(linesensor->data[i]) - min[i]) / (max[i] - min[i]);
+    num += (-3.5 + (double)(i)) * intensity;
     den += intensity;
   }
-  printf("\n");
 
   return num / den;
 

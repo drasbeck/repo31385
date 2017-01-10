@@ -21,14 +21,14 @@
 #include "xmlio.h"
 
 #define DATA_LOG_ROW 50000
-#define DATA_LOG_COL 8
+#define DATA_LOG_COL 9
 
-#define MAX_DELTA_VEL 0.005
-#define MAX_DECELERATION 0.5
+#define MAX_DELTA_VEL 0.0025
+#define MAX_DECELERATION 0.1
 
 #define K_SPEED 0.01
-#define K_FOLLOW_LINE .35
-//#define K_FOLLOW_LINE 0.2
+//#define K_FOLLOW_LINE -0.1
+#define K_FOLLOW_LINE 0.2
 
 struct xml_in *xmldata;
 struct xml_in *xmllaser;
@@ -149,8 +149,6 @@ void update_motcon(motiontype *p);
 int fwd(double dist, double speed, int time);
 int followline(double dist, double speed, int time);
 int turn(double angle, double speed, int time);
-
-double line_center(void);
 
 typedef struct
 {
@@ -349,11 +347,10 @@ int main()
       break;
     }*/
 
-/*
-    switch (mission.state) {
+    /*switch (mission.state) {
      
      case ms_init:
-       dist=2.00; vel=0.3;
+       dist=1.00; vel=0.3;
        mission.state= ms_fwd;      
      break;
      
@@ -365,14 +362,13 @@ int main()
        mot.cmd=mot_stop;
        running=0;
      break;
-
-
+    
     }*/
     
     switch (mission.state) {
       
       case ms_init:
-	dist=99.00; vel=0.3;
+	dist=2.00; vel=0.3;
 	mission.state= ms_followline;      
       break;
       
@@ -400,7 +396,7 @@ int main()
     for (i = 0; i < 8; i++) {
       data_log[index][i] = /*line_calib[0][i] + line_calib[1][i] **/ (double)(linesensor->data[i]);
     }
-    //data_log[index][8] = line_c;
+    data_log[index][8] = line_c;
     index++;
 
     /*  END OF MISSION  */
@@ -595,18 +591,12 @@ void update_motcon(motiontype *p) {
 	}
 	//printf("\n");
 	line_c = line_c_num / line_c_den;
-	//printf("%f\n", line_center());
+	printf("%f\n", line_c);
         
-        delta_speed = K_FOLLOW_LINE * line_center();
+        delta_speed = K_FOLLOW_LINE * line_c;
         p->motorspeed_l -= delta_speed;
         p->motorspeed_r += delta_speed;
-
-        max_speed = sqrt(2.0 * MAX_DECELERATION * (p->dist - (p->right_pos + p->left_pos) / 2.0 - p->startpos));
-        if (p->motorspeed_l < -p->speedcmd) {p->motorspeed_l = -p->speedcmd;}
-        if (p->motorspeed_r < -p->speedcmd) {p->motorspeed_r = -p->speedcmd;}
-
-
-        printf("dist(%f), l(%f), r(%f), center(%f), deltaS(%f)\n", ((p->right_pos + p->left_pos) / 2.0 - p->startpos), p->motorspeed_l, p->motorspeed_r, line_center(), delta_speed);
+        
       }
       
       break;
@@ -699,27 +689,4 @@ void sm_update(smtype *p) {
   } else {
     p->time++;
   }
-}
-
-/*** DATA FUNCTIONS ***/
-
-double line_center(void) {
-
-  int i;
-  double intensity;
-  double num = 0, den = 0;
-  
-  const double min[8] = {49.7129, 50.0733, 50.1517, 49.8031, 49.5481, 49.8077, 49.6494, 52.5971};
-  const double max[8] = {58.6394, 60.3545, 66.0494, 59.5392, 58.8640, 59.1455, 60.1955, 81.7896};
- 
-  for (i = 0; i < 8; i++) {
-    intensity = ((double)linesensor->data[i] - min[i]) / (max[i] - min[i]);
-    printf("%f\n", intensity);
-    //printf("%f ", intensity);
-    num += (-3.5 + i) * intensity;
-    den += intensity;
-  }
-  //printf("\n");
-
-  return num / den;
 }

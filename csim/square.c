@@ -714,7 +714,6 @@ double line_center(void) {
  
   for (i = 0; i < 8; i++) {
     intensity = ((double)linesensor->data[i] - min[i]) / (max[i] - min[i]);
-    printf("%f\n", intensity);
     //printf("%f ", intensity);
     num += (-3.5 + i) * intensity;
     den += intensity;
