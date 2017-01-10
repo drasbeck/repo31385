@@ -173,15 +173,23 @@ enum {
 
 int main()
 {
-  int running, arg, time = 0, index = 0, i, j;
+  int running, arg, time = 0, i;
   /*int n = 0;
   double angle = 0;*/
   double dist = 0;
   double vel=0;
-  double data_log[DATA_LOG_ROW][DATA_LOG_COL] = {{0}};
-  FILE *data_file;
+  FILE *log_file_p;
+  
+  /*** OPENING LOG FILE ***/
+  
+  log_file_p = fopen("log.dat", "w");
+  if (log_file_p == NULL) {
+    printf("Error opening log file!\n");
+    exit(1);
+  }
 
   /*** CONNECTION TO SENSORS ANS ACTUATORS ***/
+  
   if (rhdConnect('w', "localhost", ROBOTPORT) != 'w')
   {
     printf("Can't connect to rhd \n");
@@ -376,22 +384,21 @@ int main()
       break;
       
     }
-
-    /*data_log[index][0] = index;
-    data_log[index][1] = mission.time;
-    data_log[index][2] = mot.motorspeed_l;
-    data_log[index][3] = mot.motorspeed_r;
-    data_log[index][4] = odo.x;
-    data_log[index][5] = odo.y;
-    data_log[index][6] = odo.th;
+    
+    /* Write to log file */
+    fprintf(log_file_p, "%d,", mission.time);
+    fprintf(log_file_p, "%g,", mot.motorspeed_l);
+    fprintf(log_file_p, "%g,", mot.motorspeed_r);
+    fprintf(log_file_p, "%g,", odo.x);
+    fprintf(log_file_p, "%g,", odo.y);
+    fprintf(log_file_p, "%g,", odo.th);
     for (i = 0; i < 10; i++) {
-      data_log[index][7+i] = laserpar[i];
-    }*/
-    for (i = 0; i < 8; i++) {
-      data_log[index][i] = /*line_calib[0][i] + line_calib[1][i] **/ (double)(linesensor->data[i]);
+      fprintf(log_file_p, "%g,", laserpar[i]);
     }
-    //data_log[index][8] = line_c;
-    index++;
+    for (i = 0; i < 8; i++) {
+      fprintf(log_file_p, "%g,", (double)(linesensor->data[i]));
+    }
+    fprintf(log_file_p, "\n");
 
     /*  END OF MISSION  */
 
@@ -403,35 +410,20 @@ int main()
     speedl->updated = 1;
     speedr->data[0] = 100 * mot.motorspeed_r;
     speedr->updated = 1;
-    if (time % 100 == 0)
-      //    printf(" laser %f \n",laserpar[3]);
-      time++;
-    /* stop if keyboard is activated
-*
-*/
+    if (time % 100 == 0) {time++;}
+    
+    /* stop if keyboard is activated */
     ioctl(0, FIONREAD, &arg);
-    if (arg != 0)
-      running = 0;
+    if (arg != 0) {running = 0;}
 
-  } /* end of main control loop */
-
-  data_file = fopen("data_log.dat", "w");
-  if (data_file == NULL)
-  {
-    printf("Error opening log file!\n");
-    exit(1);
+    /* end of main control loop */
+    
   }
-  //fprintf(data_file, "index,mission.time,mot.motorspeed_l,mot.motorspeed_r,odo.x,odo.y,odo.th,laserpar[0],laserpar[1],laserpar[2],laserpar[3],laserpar[4],laserpar[5],laserpar[6],laserpar[7],laserpar[8],laserpar[9],linepar[0],linepar[1],linepar[2],linepar[3],linepar[4],linepar[5],linepar[6],linepar[7]\n");
-  for (i = 0; i < index; i++)
-  {
-    for (j = 0; j < DATA_LOG_COL; j++)
-    {
-      fprintf(data_file, "%g,", data_log[i][j]);
-    }
-    fprintf(data_file, "\n");
-  }
-  fclose(data_file);
 
+  /* Close log file */
+  fclose(log_file_p);
+
+  /* Stop everything */
   speedl->data[0] = 0;
   speedl->updated = 1;
   speedr->data[0] = 0;
