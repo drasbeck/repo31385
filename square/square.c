@@ -23,12 +23,12 @@
 #define DATA_LOG_ROW 50000
 #define DATA_LOG_COL 9
 
-#define MAX_DELTA_VEL 0.0025
-#define MAX_DECELERATION 0.1
+#define MAX_DELTA_VEL 0.005
+#define MAX_DECELERATION 0.5
 
 #define K_SPEED 0.01
-//#define K_FOLLOW_LINE -0.1
-#define K_FOLLOW_LINE 0.2
+#define K_FOLLOW_LINE -0.3
+//#define K_FOLLOW_LINE 0.2
 
 struct xml_in *xmldata;
 struct xml_in *xmllaser;
@@ -149,6 +149,8 @@ void update_motcon(motiontype *p);
 int fwd(double dist, double speed, int time);
 int followline(double dist, double speed, int time);
 int turn(double angle, double speed, int time);
+
+double line_center(void);
 
 typedef struct
 {
@@ -347,10 +349,10 @@ int main()
       break;
     }*/
 
-    /*switch (mission.state) {
+    switch (mission.state) {
      
      case ms_init:
-       dist=1.00; vel=0.3;
+       dist=2.00; vel=0.3;
        mission.state= ms_fwd;      
      break;
      
@@ -363,7 +365,7 @@ int main()
        running=0;
      break;
     
-    }*/
+    }/*
     
     switch (mission.state) {
       
@@ -381,7 +383,7 @@ int main()
 	running=0;
       break;
       
-    }
+    }*/
 
     /*data_log[index][0] = index;
     data_log[index][1] = mission.time;
@@ -591,9 +593,9 @@ void update_motcon(motiontype *p) {
 	}
 	//printf("\n");
 	line_c = line_c_num / line_c_den;
-	printf("%f\n", line_c);
+	//printf("%f\n", line_center());
         
-        delta_speed = K_FOLLOW_LINE * line_c;
+        delta_speed = K_FOLLOW_LINE * line_center();
         p->motorspeed_l -= delta_speed;
         p->motorspeed_r += delta_speed;
         
@@ -689,4 +691,46 @@ void sm_update(smtype *p) {
   } else {
     p->time++;
   }
+}
+
+/*** DATA FUNCTIONS ***/
+
+double line_center(void) {
+
+  int i;
+  double min, max, intensity;
+  double num = 0, den = 0;
+  const double x[8] = {0.0630, 0.0450, 0.0270, 0.0090, -0.0090, -0.0270, -0.0450, -0.0630};
+  double data[8] = { 0.0 };
+  const double calib[2][8] = {
+    {-5.4427e+00, -4.7939e+00, -3.1359e+00, -5.0336e+00, -5.2274e+00, -5.2536e+00, -4.6456e+00, -1.7980e+00},
+    {1.0969e-01,  9.5879e-02,  6.2579e-02, 1.0121e-01, 1.0566e-01, 1.0561e-01, 9.3687e-02, 3.4199e-02}
+  };
+  
+  for (i = 0; i < 8; i++) {
+    data[i] = calib[0][i] + calib[1][i] * (double)(linesensor->data[i]);
+  }
+
+  min = data[0];
+  max = data[0];
+  for (i = 1; i < 8; i++) {
+    if (data[i] < min) {
+      min = data[i];
+    }
+    if (data[i] > max) {
+      max = data[i];
+    }
+  }
+
+  for (i = 0; i < 8; i++) {
+    intensity = (data[i] - min) / (max - min);
+    intensity = 1 - intensity;
+    printf("%f ", intensity);
+    num += x[i] * intensity;
+    den += intensity;
+  }
+  printf("\n");
+
+  return num / den;
+
 }
