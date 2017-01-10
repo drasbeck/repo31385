@@ -349,6 +349,7 @@ int main()
       break;
     }*/
 
+    /*
     switch (mission.state) {
      
      case ms_init:
@@ -364,8 +365,9 @@ int main()
        mot.cmd=mot_stop;
        running=0;
      break;
+     */
     
-    }/*
+    }
     
     switch (mission.state) {
       
@@ -383,7 +385,7 @@ int main()
 	running=0;
       break;
       
-    }*/
+    }
 
     /*data_log[index][0] = index;
     data_log[index][1] = mission.time;
