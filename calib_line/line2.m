@@ -1,6 +1,6 @@
 clear all; clc; close all;
 
-data = importdata('ucline.dat');
+data = importdata('ucline2.dat');
 data = data(:,1:8);
 
 figure;
