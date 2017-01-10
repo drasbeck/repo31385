@@ -40,16 +40,6 @@ double visionpar[10];
 double laserpar[10];
 double line_c = 0.0;
 
-const double line_calib[2][8] = {
-  {-5.4427e+00, -4.7939e+00, -3.1359e+00, -5.0336e+00, -5.2274e+00, -5.2536e+00, -4.6456e+00, -1.7980e+00},
-  {1.0969e-01,  9.5879e-02,  6.2579e-02, 1.0121e-01, 1.0566e-01, 1.0561e-01, 9.3687e-02, 3.4199e-02}
-};
-/*const double line_calib[2][8] = {
-  {-5.0000e-01, -5.0000e-01, -5.0000e-01, -5.0000e-01, -5.0000e-01, -5.0000e-01, -5.0000e-01, -5.0000e-01},
-  {5.8824e-03, 5.8824e-03, 5.8824e-03, 5.8824e-03, 5.8824e-03, 5.8824e-03, 5.8824e-03, 5.8824e-03}
-};*/
-const double line_dist[8] = {0.063, 0.045, 0.027, 0.009, -0.009, -0.027, -0.045, -0.063};
-
 void serverconnect(componentservertype *s);
 void xml_proc(struct xml_in *x);
 void xml_proca(struct xml_in *x);
@@ -99,19 +89,21 @@ getoutputref(const char *sym_name, symTableElement *tab)
 #define CL (DELTA_M / CORRECTION)
 #define CR (DELTA_M * CORRECTION)
 
+/*** COMMUNICATION ***/
+
 #define ROBOTPORT 24902
 
-typedef struct
-{                          //input signals
-  int left_enc, right_enc; // encoderticks
-  // parameters
-  double w;      // wheel separation
-  double cr, cl; // meters per encodertick
-                 //output signals
+typedef struct {
+  /* Input Signals */
+  int left_enc, right_enc; // Encoder Ticks
+  /* Parameters */
+  double w; // Wheel separation
+  double cr, cl; // Meters per encodertick
+  /* Output Signals */
   double right_pos, left_pos;
-  // internal variables
+  /* internal Variables */
   int left_enc_old, right_enc_old;
-  // Odometry
+  /* Odometry */
   double th, th_ref, x, y;
 } odotype;
 
@@ -120,8 +112,8 @@ void update_odo(odotype *p);
 
 /*** MOTION CONTROL ***/
 
-typedef struct
-{ //input
+typedef struct {
+  /* Inputs */
   int cmd;
   int curcmd;
   double speedcmd;
@@ -129,12 +121,13 @@ typedef struct
   double angle;
   double left_pos, right_pos;
   double th, th_ref;
-  // parameters
+  char line_color;
+  /* Parameters */
   double w;
-  //output
+  /* Outputs */
   double motorspeed_l, motorspeed_r;
   int finished;
-  // internal variables
+  /* Internal Variables */
   double startpos, startth;
   double dspeed, dspeed_old;
 } motiontype;
@@ -149,20 +142,19 @@ enum {
 void update_motcon(motiontype *p);
 
 int fwd(double dist, double speed, int time);
-int followline(double dist, double speed, int time);
+int followline(char line_color, double dist, double speed, int time);
 int turn(double angle, double speed, int time);
 
-double line_center(void);
+double line_center(char line_color);
 
-typedef struct
-{
+typedef struct {
   int state, oldstate;
   int time;
 } smtype;
 
 void sm_update(smtype *p);
 
-// SMR input/output data
+/*** SMR INPUT AND OUTPUT DATA */
 
 symTableElement *inputtable, *outputtable;
 symTableElement *lenc, *renc, *linesensor, *irsensor, *speedl, *speedr, *resetmotorr, *resetmotorl;
@@ -171,8 +163,7 @@ odotype odo;
 smtype mission;
 motiontype mot;
 
-enum
-{
+enum {
   ms_init,
   ms_fwd,
   ms_followline,
@@ -183,15 +174,14 @@ enum
 int main()
 {
   int running, arg, time = 0, index = 0, i, j;
-  //int n = 0;
-  //double angle = 0;
+  /*int n = 0;
+  double angle = 0;*/
   double dist = 0;
   double vel=0;
   double data_log[DATA_LOG_ROW][DATA_LOG_COL] = {{0}};
   FILE *data_file;
 
-  /* Establish connection to robot sensors and actuators.
-   */
+  /*** CONNECTION TO SENSORS ANS ACTUATORS ***/
   if (rhdConnect('w', "localhost", ROBOTPORT) != 'w')
   {
     printf("Can't connect to rhd \n");
@@ -280,8 +270,8 @@ int main()
     }
   }
 
-  /* Read sensors and zero our position.
-   */
+  /* READ SENSOR AND ZERO POSITION */
+  
   rhdSync();
 
   odo.w = WHEEL_SEPARATION;
@@ -377,7 +367,7 @@ int main()
       break;
       
       case ms_followline:
-	if (followline(dist,vel,mission.time)) {mission.state=ms_end;}
+	if (followline('b',dist,vel,mission.time)) {mission.state=ms_end;}
       break;   
       
       case ms_end:
@@ -449,6 +439,7 @@ int main()
   rhdSync();
   rhdDisconnect();
   exit(0);
+  
 }
 
 /*** ODOMETRY FUNCTIONS ***/
@@ -577,7 +568,7 @@ void update_motcon(motiontype *p) {
         p->motorspeed_r = p->speedcmd;
         
 	p->dspeed_old = p->dspeed;
-        p->dspeed = KP_FOLLOWLINE * line_center();
+        p->dspeed = KP_FOLLOWLINE * line_center(p->line_color);
 	p->dspeed += KD_FOLLOWLINE * (p->dspeed_old - p->dspeed);
         p->motorspeed_l -= p->dspeed;
         p->motorspeed_r += p->dspeed;
@@ -645,11 +636,12 @@ int fwd(double dist, double speed, int time) {
   }
 }
 
-int followline(double dist, double speed, int time) {
+int followline(char line_color, double dist, double speed, int time) {
   if (time == 0) {
     mot.cmd = mot_followline;
     mot.speedcmd = speed;
     mot.dist = dist;
+    mot.line_color = line_color;
     return 0;
   } else {
     return mot.finished;
@@ -678,18 +670,24 @@ void sm_update(smtype *p) {
 
 /*** LINE SENSOR FUNCTIONS ***/
 
-double line_center(void) {
+double line_center(char line_color) {
 
   int i;
   double intensity;
   double num = 0.0, den = 0.0;
+  /* Line sensor calibrations for SMR 9 */
   const double min[8] = {49.7129, 50.0733, 50.1517, 49.8031, 49.5481, 49.8077, 49.6494, 52.5971};
   const double max[8] = {58.6394, 60.3545, 66.0494, 59.5392, 58.8640, 59.1455, 60.1955, 81.7896};
+  /* Line sensor calibrations for simulator */
   /*const double min[8] = {85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000};
   const double max[8] = {255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000};*/
 
   for (i = 0; i < 8; i++) {
-    intensity = 1.0 - ((double)(linesensor->data[i]) - min[i]) / (max[i] - min[i]);
+    if (line_color == 'w') {
+      intensity = ((double)(linesensor->data[i]) - min[i]) / (max[i] - min[i]);
+    } else {
+      intensity = 1.0 - ((double)(linesensor->data[i]) - min[i]) / (max[i] - min[i]);
+    }
     num += (-3.5 + (double)(i)) * intensity;
     den += intensity;
   }
