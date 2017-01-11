@@ -29,7 +29,9 @@
 
 #define KP_FWD 0.01
 #define KP_FOLLOWLINE 0.2
-#define KD_FOLLOWLINE 0.001
+#define KD_FOLLOWLINE 0.1
+#define KP_FOLLOWWALL 5.0
+#define KD_FOLLOWWALL 5.0
 
 struct xml_in *xmldata;
 struct xml_in *xmllaser;
@@ -75,15 +77,15 @@ getoutputref(const char *sym_name, symTableElement *tab)
 #define CORRECTION 1.0
 */
 
-/*
 #define WHEEL_SEPARATION 0.26
 #define DELTA_M 0.00010245
 #define CORRECTION 1.0
-*/
 
+/*
 #define WHEEL_SEPARATION 0.261930
 #define DELTA_M 0.000103
 #define CORRECTION 1.000449
+*/
 
 #define CL (DELTA_M / CORRECTION)
 #define CR (DELTA_M * CORRECTION)
@@ -120,7 +122,8 @@ typedef struct {
   double angle;
   double left_pos, right_pos;
   double th, th_ref;
-  char line_color;
+  char line_type;
+  int ir_number;
   /* Parameters */
   double w;
   /* Outputs */
@@ -128,23 +131,26 @@ typedef struct {
   int finished;
   /* Internal Variables */
   double startpos, startth;
-  double dspeed, dspeed_old;
+  double ctrl_err, ctrl_err_last, ctrl_der, ctrl_out;
+  double wall_dist;
 } motiontype;
 
 enum {
   mot_stop = 1,
   mot_move,
   mot_followline,
+  mot_followwall,
   mot_turn
 };
 
 void update_motcon(motiontype *p);
 
 int fwd(double dist, double speed, int time);
-int followline(char line_color, double dist, double speed, int time);
+int followline(char line_type, double dist, double speed, int time);
+int followwall(int ir_number, double dist, double speed, int time);
 int turn(double angle, double speed, int time);
 
-double line_center(char line_color);
+double line_center(char line_type);
 double ir_distance(int ir_number);
 
 typedef struct {
@@ -167,6 +173,7 @@ enum {
   ms_init,
   ms_fwd,
   ms_followline,
+  ms_followwall,
   ms_turn,
   ms_end
 };
@@ -176,8 +183,8 @@ int main()
   int running, arg, time = 0, i;
   /*int n = 0;
   double angle = 0;*/
-  double dist = 0;
-  double vel=0;
+  /*double dist = 0;
+  double vel=0;*/
   FILE *log_file_p;
   
   /*** OPENING LOG FILE ***/
@@ -370,12 +377,11 @@ int main()
     switch (mission.state) {
       
       case ms_init:
-	dist=8.00; vel=0.3;
 	mission.state= ms_followline;      
       break;
       
       case ms_followline:
-	if (followline('b',dist,vel,mission.time)) {mission.state=ms_end;}
+	if (followline('b',2.00,0.3,mission.time)) {mission.state=ms_end;}
       break;   
       
       case ms_end:
@@ -384,6 +390,23 @@ int main()
       break;
       
     }
+    
+    /*switch (mission.state) {
+      
+      case ms_init:
+	mission.state= ms_followwall;      
+      break;
+      
+      case ms_followwall:
+	if (followwall(0,4.00,0.3,mission.time)) {mission.state=ms_end;}
+      break;   
+      
+      case ms_end:
+	mot.cmd=mot_stop;
+	running=0;
+      break;
+      
+    }*/
     
     /* Write to log file */
     fprintf(log_file_p, "%d,", mission.time);
@@ -399,9 +422,14 @@ int main()
       fprintf(log_file_p, "%g,", (double)(linesensor->data[i]));
     }
     for (i = 0; i < 5; i++) {
-      fprintf("%g,", ir_distance(i));
+      fprintf(log_file_p, "%g,", ir_distance(i));
     }
     fprintf(log_file_p, "\n");
+    
+    for (i = 0; i < 5; i++) {
+      printf("(%f)", ir_distance(i));
+    }
+    printf("\n");
 
     /*  END OF MISSION  */
 
@@ -479,7 +507,7 @@ void update_odo(odotype *p)
 
 void update_motcon(motiontype *p) {
 
-  double max_speed, delta_speed;
+  double max_speed;
 
   if (p->cmd != 0) {
 
@@ -499,8 +527,14 @@ void update_motcon(motiontype *p) {
       case mot_followline:
         p->startpos = (p->left_pos + p->right_pos) / 2;
         p->curcmd = mot_followline;
-	p->dspeed = 0;
-	p->dspeed_old = 0;
+	p->ctrl_err = 0.0;
+        break;
+
+      case mot_followwall:
+        p->startpos = (p->left_pos + p->right_pos) / 2;
+        p->curcmd = mot_followwall;
+	p->wall_dist = ir_distance(p->ir_number);
+	p->ctrl_err = 0.0;
         break;
 
       case mot_turn:
@@ -541,9 +575,11 @@ void update_motcon(motiontype *p) {
         if (p->motorspeed_l > max_speed) {p->motorspeed_l = max_speed;}
         if (p->motorspeed_r > max_speed) {p->motorspeed_r = max_speed;}
         
-        delta_speed = KP_FWD * (p->th_ref - p->th);
-        p->motorspeed_l -= delta_speed;
-        p->motorspeed_r += delta_speed;
+        p->ctrl_err = p->th_ref - p->th;
+        p->ctrl_out = KP_FWD * p->ctrl_err;
+        
+        p->motorspeed_l -= p->ctrl_out;
+        p->motorspeed_r += p->ctrl_out;
         
       }
       
@@ -562,11 +598,39 @@ void update_motcon(motiontype *p) {
         p->motorspeed_l = p->speedcmd;
         p->motorspeed_r = p->speedcmd;
         
-	p->dspeed_old = p->dspeed;
-        p->dspeed = KP_FOLLOWLINE * line_center(p->line_color);
-	p->dspeed += KD_FOLLOWLINE * (p->dspeed_old - p->dspeed);
-        p->motorspeed_l -= p->dspeed;
-        p->motorspeed_r += p->dspeed;
+	p->ctrl_err_last = p->ctrl_err;
+        p->ctrl_err = -line_center(p->line_type);
+	p->ctrl_der = p->ctrl_err - p->ctrl_err_last;
+	p->ctrl_out = KP_FOLLOWLINE * p->ctrl_err + KD_FOLLOWLINE * p->ctrl_der;
+        
+        p->motorspeed_l += p->ctrl_out;
+        p->motorspeed_r -= p->ctrl_out;
+        
+      }
+      
+      break;
+      
+    case mot_followwall:
+
+      if ((p->right_pos + p->left_pos) / 2.0 - p->startpos > p->dist) {
+        
+        p->finished = 1;
+        p->motorspeed_l = 0;
+        p->motorspeed_r = 0;
+        
+      } else {
+
+        p->motorspeed_l = p->speedcmd;
+        p->motorspeed_r = p->speedcmd;
+	
+	p->ctrl_err_last = p->ctrl_err;
+	p->ctrl_err = p->wall_dist - ir_distance(p->ir_number);
+	printf("(%f)\n", p->ctrl_err);
+	p->ctrl_der = p->ctrl_err - p->ctrl_err_last;
+	p->ctrl_out = KP_FOLLOWWALL * p->ctrl_err + KD_FOLLOWWALL * p->ctrl_der;
+        
+        p->motorspeed_l += p->ctrl_out;
+        p->motorspeed_r -= p->ctrl_out;
         
       }
       
@@ -631,12 +695,24 @@ int fwd(double dist, double speed, int time) {
   }
 }
 
-int followline(char line_color, double dist, double speed, int time) {
+int followline(char line_type, double dist, double speed, int time) {
   if (time == 0) {
     mot.cmd = mot_followline;
     mot.speedcmd = speed;
     mot.dist = dist;
-    mot.line_color = line_color;
+    mot.line_type = line_type;
+    return 0;
+  } else {
+    return mot.finished;
+  }
+}
+
+int followwall(int ir_number, double dist, double speed, int time) {
+  if (time == 0) {
+    mot.cmd = mot_followwall;
+    mot.speedcmd = speed;
+    mot.dist = dist;
+    mot.ir_number = ir_number;
     return 0;
   } else {
     return mot.finished;
@@ -665,20 +741,20 @@ void sm_update(smtype *p) {
 
 /*** LINE SENSOR FUNCTIONS ***/
 
-double line_center(char line_color) {
+double line_center(char line_type) {
 
   int i;
   double intensity;
   double num = 0.0, den = 0.0;
   /* Line sensor calibrations for SMR 9 */
-  const double min[8] = {49.7129, 50.0733, 50.1517, 49.8031, 49.5481, 49.8077, 49.6494, 52.5971};
-  const double max[8] = {58.6394, 60.3545, 66.0494, 59.5392, 58.8640, 59.1455, 60.1955, 81.7896};
+  /*const double min[8] = {49.7129, 50.0733, 50.1517, 49.8031, 49.5481, 49.8077, 49.6494, 52.5971};
+  const double max[8] = {58.6394, 60.3545, 66.0494, 59.5392, 58.8640, 59.1455, 60.1955, 81.7896};*/
   /* Line sensor calibrations for simulator */
-  /*const double min[8] = {85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000};
-  const double max[8] = {255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000};*/
+  const double min[8] = {85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000};
+  const double max[8] = {255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000};
 
   for (i = 0; i < 8; i++) {
-    if (line_color == 'w') {
+    if (line_type == 'w') {
       intensity = ((double)(linesensor->data[i]) - min[i]) / (max[i] - min[i]);
     } else {
       intensity = 1.0 - ((double)(linesensor->data[i]) - min[i]) / (max[i] - min[i]);
@@ -695,9 +771,9 @@ double line_center(char line_color) {
 
 double ir_distance(int ir_number) {
   
-  const double ka[5] = {0.0000, 13.5608, 13.4456, 14.0818, 0.0000};
-  const double kb[5] = {0.0000, 38.1084, 64.3544, 55.2223, 0.0000};
+  const double ka[5] = {13.6961, 13.5608, 13.4456, 14.0818, 13.6961}; // 0 and 4 not calibrated!
+  const double kb[5] = {52.5617, 38.1084, 64.3544, 55.2223, 52.5617}; // 0 and 4 not calibrated!
   
-  return ka[ir_number] / ((double)(irsensor->data[ir_number] - kb[ir_number]));
+  return ka[ir_number] / ((double)(irsensor->data[ir_number]) - kb[ir_number]);
   
 }
