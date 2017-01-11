@@ -30,8 +30,8 @@
 #define KP_FWD 0.01
 #define KP_FOLLOWLINE 0.2
 #define KD_FOLLOWLINE 0.1
-#define KP_FOLLOWWALL 0.5
-#define KD_FOLLOWWALL 0.01
+#define KP_FOLLOWWALL 1.0
+#define KD_FOLLOWWALL 0.0
 
 struct xml_in *xmldata;
 struct xml_in *xmllaser;
@@ -77,13 +77,13 @@ getoutputref(const char *sym_name, symTableElement *tab)
 #define CORRECTION 1.0
 */
 
-/*#define WHEEL_SEPARATION 0.26
+#define WHEEL_SEPARATION 0.26
 #define DELTA_M 0.00010245
-#define CORRECTION 1.0*/
+#define CORRECTION 1.0
 
-#define WHEEL_SEPARATION 0.261930
+/*#define WHEEL_SEPARATION 0.261930
 #define DELTA_M 0.000103
-#define CORRECTION 1.000449
+#define CORRECTION 1.000449*/
 
 #define CL (DELTA_M / CORRECTION)
 #define CR (DELTA_M * CORRECTION)
@@ -150,7 +150,6 @@ int turn(double angle, double speed, int time);
 
 double line_center(char line_type);
 double ir_distance(int ir_number);
-char line_color(int line_number);
 
 typedef struct {
   int state, oldstate;
@@ -355,14 +354,15 @@ int main()
       break;
     }*/
 
-    switch (mission.state) {
+    /*switch (mission.state) {
      
      case ms_init:
+       dist=2.00; vel=0.3;
        mission.state= ms_fwd;      
      break;
      
      case ms_fwd:
-       if (fwd(1.00,0.3,mission.time)) {mission.state=ms_end;}
+       if (fwd(dist,vel,mission.time)) {mission.state=ms_end;}
      break;   
      
      case ms_end:
@@ -370,7 +370,7 @@ int main()
        running=0;
      break;
     
-    }
+    }*/
     
     /*switch (mission.state) {
       
@@ -389,7 +389,7 @@ int main()
       
     }*/
     
-    /*switch (mission.state) {
+    switch (mission.state) {
       
       case ms_init:
 	mission.state= ms_followwall;      
@@ -404,10 +404,10 @@ int main()
 	running=0;
       break;
       
-    }*/
+    }
     
     /* Write to log file */
-    /*fprintf(log_file_p, "%d,", mission.time);
+    fprintf(log_file_p, "%d,", mission.time);
     fprintf(log_file_p, "%g,", mot.motorspeed_l);
     fprintf(log_file_p, "%g,", mot.motorspeed_r);
     fprintf(log_file_p, "%g,", odo.x);
@@ -415,17 +415,17 @@ int main()
     fprintf(log_file_p, "%g,", odo.th);
     for (i = 0; i < 10; i++) {
       fprintf(log_file_p, "%g,", laserpar[i]);
-    }*/
+    }
     for (i = 0; i < 8; i++) {
       fprintf(log_file_p, "%g,", (double)(linesensor->data[i]));
     }
-    /*for (i = 0; i < 5; i++) {
+    for (i = 0; i < 5; i++) {
       fprintf(log_file_p, "%g,", ir_distance(i));
-    }*/
+    }
     fprintf(log_file_p, "\n");
     
-    for (i = 0; i < 8; i++) {
-      printf("(%c)", line_color(i));
+    for (i = 0; i < 5; i++) {
+      printf("(%f)", ir_distance(i));
     }
     printf("\n");
 
@@ -773,21 +773,5 @@ double ir_distance(int ir_number) {
   const double kb[5] = {57.4200, 38.1084, 64.3544, 55.2223, 72.6000}; // 0 and 4 not calibrated!
   
   return ka[ir_number] / ((double)(irsensor->data[ir_number]) - kb[ir_number]);
-  
-}
-
-char line_color(int line_number) {
-  
-  double blim[8] = {53.2119, 54.4847, 57.6007, 53.7704, 53.1544, 53.5702, 54.0679, 66.6741};
-  /*double wlim[8] = {58.2510, 59.2777, 62.9864, 58.7009, 58.0611, 58.1362, 59.1064, 73.4506}; // White-white*/
-  double wlim[8] = {56.8812, 58.2390, 62.2036, 57.5726, 56.9525, 57.2897, 58.0907, 73.4007}; // Dirty-white
-  
-  if ((double)(linesensor->data[line_number]) > wlim[line_number]) {
-    return 'w';
-  } else if ((double)(linesensor->data[line_number]) < blim[line_number]) {
-    return 'b';
-  } else {
-    return 'f';
-  }
   
 }
