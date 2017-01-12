@@ -1,6 +1,6 @@
-
 /*** GROUP 13 SMR PROGRAM ***/
 
+/* Includes */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,23 +15,24 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-
 #include <sys/ioctl.h>
 #include "rhd.h"
 #include "componentserver.h"
 #include "xmlio.h"
 
-#define DATA_LOG_ROW 50000
-#define DATA_LOG_COL 8
-
+/* Acceleration control parameters */
 #define MAX_DELTA_VEL 0.005
 #define MAX_DECELERATION 0.5
 
+/* PD motion controller parameters */
 #define KP_FWD 0.01
 #define KP_FOLLOWLINE 0.2
 #define KD_FOLLOWLINE 0.1
 #define KP_FOLLOWWALL 0.5
 #define KD_FOLLOWWALL 0.01
+
+/* Parameters for line following */
+#define FOLLOWLINE_OFFSET 1.0
 
 struct xml_in *xmldata;
 struct xml_in *xmllaser;
@@ -48,9 +49,7 @@ void xml_proca(struct xml_in *x);
 componentservertype lmssrv, camsrv;
 
 symTableElement *
-
-getinputref(const char *sym_name, symTableElement *tab)
-{
+getinputref(const char *sym_name, symTableElement *tab) {
   int i;
   for (i = 0; i < getSymbolTableSize('r'); i++)
     if (strcmp(tab[i].name, sym_name) == 0)
@@ -59,8 +58,7 @@ getinputref(const char *sym_name, symTableElement *tab)
 }
 
 symTableElement *
-getoutputref(const char *sym_name, symTableElement *tab)
-{
+getoutputref(const char *sym_name, symTableElement *tab) {
   int i;
   for (i = 0; i < getSymbolTableSize('w'); i++)
     if (strcmp(tab[i].name, sym_name) == 0)
@@ -70,21 +68,23 @@ getoutputref(const char *sym_name, symTableElement *tab)
 
 /*** ODOMETRY ***/
 
-/*
+/* Original odomotry parameters
 #define WHEEL_SEPARATION 0.252
 #define WHEEL_DIAMETER 0.067
 #define DELTA_M (M_PI * WHEEL_DIAMETER / 2000)
-#define CORRECTION 1.0
-*/
+#define CORRECTION 1.0 */
 
-/*#define WHEEL_SEPARATION 0.26
+/* Simulator odometry parameters */
+#define WHEEL_SEPARATION 0.26
 #define DELTA_M 0.00010245
-#define CORRECTION 1.0*/
+#define CORRECTION 1.0
 
-#define WHEEL_SEPARATION 0.261930
+/* Robot (SMR 9) parameters */
+/*#define WHEEL_SEPARATION 0.261930
 #define DELTA_M 0.000103
-#define CORRECTION 1.000449
+#define CORRECTION 1.000449*/
 
+/* Odometry corrections */
 #define CL (DELTA_M / CORRECTION)
 #define CR (DELTA_M * CORRECTION)
 
@@ -120,7 +120,7 @@ typedef struct {
   double angle;
   double left_pos, right_pos;
   double th, th_ref;
-  char line_type;
+  char line_type[2];
   int ir_number;
   /* Parameters */
   double w;
@@ -131,6 +131,7 @@ typedef struct {
   double startpos, startth;
   double ctrl_err, ctrl_err_last, ctrl_der, ctrl_out;
   double wall_dist;
+  char line_colors[8];
 } motiontype;
 
 enum {
@@ -144,13 +145,14 @@ enum {
 void update_motcon(motiontype *p);
 
 int fwd(double dist, double speed, int time);
-int followline(char line_type, double dist, double speed, int time);
+int followline(char line_type[], double dist, double speed, int time);
 int followwall(int ir_number, double dist, double speed, int time);
 int turn(double angle, double speed, int time);
 
-double line_center(char line_type);
+double line_center(char line_color);
 double ir_distance(int ir_number);
 char line_color(int line_number);
+int crossing_black_line(motiontype *p);
 
 typedef struct {
   int state, oldstate;
@@ -174,14 +176,35 @@ enum {
   ms_followline,
   ms_followwall,
   ms_turn,
-  ms_end
+  ms_end,
+  /**/
+  ms_measBox,
+  ms_moveBoxTurn1,
+  ms_moveBoxFwd1,
+  ms_moveBoxFwd2,
+  ms_moveBoxTurn2,
+  ms_moveBoxFollow1,
+  ms_moveBoxFwd3,
+  ms_boxGateBwd1,
+  ms_boxGateTurn1,
+  ms_boxGateFwd1,
+  ms_boxGateFwd2,
+  ms_boxGateTurn2,
+  ms_boxGateFwd3,
+  ms_boxGateFwd4,
+  ms_boxGateTurn3,
+  ms_boxGateFwd5,
+  ms_boxGateFwd6,
+  ms_boxGateFwd7,
+  ms_boxGateFwd8
 };
 
 int main()
 {
   int running, arg, time = 0, i;
-  /*int n = 0;
-  double angle = 0;*/
+  int crossingblackline = 0;
+  int n = 0;
+  /*double angle = 0;*/
   /*double dist = 0;
   double vel=0;*/
   FILE *log_file_p;
@@ -318,11 +341,162 @@ int main()
     odo.left_enc = lenc->data[0];
     odo.right_enc = renc->data[0];
     
+    crossingblackline = crossing_black_line(&mot);
+    
     update_odo(&odo);
 
     /*** MISSION STATE MACHINE ***/
     
     sm_update(&mission);
+    
+    /* Track mission */
+    switch (mission.state) {
+      
+      case ms_init:
+	mission.state = ms_measBox;      
+      break;
+      
+      case ms_measBox:
+	if (followline("br",2.50,0.3,mission.time) || crossingblackline) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_moveBoxTurn1;
+	  printf("Distance to box: %f\n", (fabs(odo.y) + 0.255 + ir_distance(3)));
+	}
+      break;
+      
+      case ms_moveBoxTurn1:
+	if (turn(M_PI/2.0, 0.3, mission.time)) {
+	  n = 2;
+	  mission.state=ms_moveBoxFwd1;
+	}
+      break;
+      
+      case ms_moveBoxFwd1:
+	if (fwd(1.00,0.3,mission.time) || crossingblackline) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_moveBoxFwd2;
+	}
+      break;
+      
+      case ms_moveBoxFwd2:
+	if (fwd(0.255,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  n--;
+	  if (n == 0) {
+	    mission.state=ms_moveBoxTurn2;
+	  } else {
+	    mission.state=ms_moveBoxFwd1;
+	  }
+	}
+      break;
+      
+      case ms_moveBoxTurn2:
+	if (turn(-M_PI/2.0, 0.3, mission.time)) {
+	  mission.state=ms_moveBoxFollow1;
+	}
+      break;
+      
+      case ms_moveBoxFollow1:
+	if (followline("bm",1.25,0.3,mission.time) || crossingblackline) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_moveBoxFwd3;
+	}
+      break;
+      
+      case ms_moveBoxFwd3:
+	if (followline("bm",0.12,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state = ms_boxGateBwd1;
+	}
+      break;
+      
+      case ms_boxGateBwd1:
+	if (fwd(1.10,-0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state = ms_boxGateTurn1;
+	}
+      break;
+      
+      case ms_boxGateTurn1:
+	if (turn(-M_PI/2.0, 0.3, mission.time)) {
+	  mission.state=ms_boxGateFwd1;
+	}
+      break;
+      
+      case ms_boxGateFwd1:
+	if (fwd(1.50,0.3,mission.time) || crossingblackline) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_boxGateFwd2;
+	}
+      break;
+      
+      case ms_boxGateFwd2:
+	if (fwd(0.255,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_boxGateTurn2;
+	}
+      break;
+      
+      case ms_boxGateTurn2:
+	if (turn(M_PI/2.0, 0.3, mission.time)) {
+	  mission.state=ms_boxGateFwd3;
+	}
+      break;
+      
+      case ms_boxGateFwd3:
+	if (followline("bm",1.50,0.3,mission.time) || crossingblackline) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_boxGateFwd4;
+	}
+      break;
+      
+      case ms_boxGateFwd4:
+	if (fwd(0.255,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_boxGateTurn3;
+	}
+      break;
+      
+      case ms_boxGateTurn3:
+	if (turn(M_PI/2.0, 0.3, mission.time)) {
+	  mission.state=ms_boxGateFwd5;
+	}
+      break;
+      
+      case ms_boxGateFwd5:
+	if (followline("bm",0.50,0.3,mission.time) || crossingblackline) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_boxGateFwd6;
+	}
+      break;
+      
+      case ms_boxGateFwd6:
+	if (fwd(0.10,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_boxGateFwd7;
+	}
+      break;
+      
+      case ms_boxGateFwd7:
+	if (followline("br",0.25,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_boxGateFwd8;
+	}
+      break;
+      
+      case ms_boxGateFwd8:
+	if (followline("br",1.00,0.3,mission.time) || crossingblackline) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_end;
+	}
+      break;
+      
+      case ms_end:
+	mot.cmd=mot_stop;
+	running=0;
+      break;
+      
+    }
 
     /*switch (mission.state)
     {
@@ -355,7 +529,7 @@ int main()
       break;
     }*/
 
-    switch (mission.state) {
+    /*switch (mission.state) {
      
      case ms_init:
        mission.state= ms_fwd;      
@@ -370,7 +544,7 @@ int main()
        running=0;
      break;
     
-    }
+    }*/
     
     /*switch (mission.state) {
       
@@ -379,7 +553,7 @@ int main()
       break;
       
       case ms_followline:
-	if (followline('b',2.00,0.3,mission.time)) {mission.state=ms_end;}
+	if (followline("br",2.00,0.3,mission.time)) {mission.state=ms_end;}
       break;   
       
       case ms_end:
@@ -407,7 +581,7 @@ int main()
     }*/
     
     /* Write to log file */
-    /*fprintf(log_file_p, "%d,", mission.time);
+    fprintf(log_file_p, "%d,", mission.time);
     fprintf(log_file_p, "%g,", mot.motorspeed_l);
     fprintf(log_file_p, "%g,", mot.motorspeed_r);
     fprintf(log_file_p, "%g,", odo.x);
@@ -415,19 +589,20 @@ int main()
     fprintf(log_file_p, "%g,", odo.th);
     for (i = 0; i < 10; i++) {
       fprintf(log_file_p, "%g,", laserpar[i]);
-    }*/
+    }
     for (i = 0; i < 8; i++) {
       fprintf(log_file_p, "%g,", (double)(linesensor->data[i]));
     }
-    /*for (i = 0; i < 5; i++) {
+    for (i = 0; i < 5; i++) {
       fprintf(log_file_p, "%g,", ir_distance(i));
-    }*/
+    }
     fprintf(log_file_p, "\n");
     
-    for (i = 0; i < 8; i++) {
+    /*for (i = 0; i < 8; i++) {
       printf("(%c)", line_color(i));
     }
-    printf("\n");
+    printf("[%d]", crossingblackline);
+    printf("\n");*/
 
     /*  END OF MISSION  */
 
@@ -501,7 +676,7 @@ void update_odo(odotype *p)
 
 }
 
-/*** MOTION FUNCTIONS ***/
+/*** MOTION STATE MACHINE ***/
 
 void update_motcon(motiontype *p) {
 
@@ -536,7 +711,7 @@ void update_motcon(motiontype *p) {
         break;
 
       case mot_turn:
-        p->th_ref += p->angle; 
+        p->th_ref = p->th + p->angle; 
         p->startth = p->th;
         p->curcmd = mot_turn;
         break;
@@ -557,8 +732,10 @@ void update_motcon(motiontype *p) {
       break;
       
     case mot_move:
+      
+      //printf("(%f)(%f)\n", (p->right_pos + p->left_pos) / 2.0 - p->startpos, p->dist);
 
-      if ((p->right_pos + p->left_pos) / 2.0 - p->startpos > p->dist) {
+      if (fabs((p->right_pos + p->left_pos) / 2.0 - p->startpos) > p->dist) {
         
         p->finished = 1;
         p->motorspeed_l = 0;
@@ -593,16 +770,22 @@ void update_motcon(motiontype *p) {
         
       } else {
 
-        p->motorspeed_l = p->speedcmd;
-        p->motorspeed_r = p->speedcmd;
-        
+	p->motorspeed_l = p->speedcmd;
+	p->motorspeed_r = p->speedcmd;
+
 	p->ctrl_err_last = p->ctrl_err;
-        p->ctrl_err = -line_center(p->line_type);
+	if (p->line_type[1] == 'l') {
+	  p->ctrl_err = -FOLLOWLINE_OFFSET - line_center(p->line_type[0]);
+	} else if (p->line_type[1] == 'r') {
+	  p->ctrl_err = FOLLOWLINE_OFFSET - line_center(p->line_type[0]);
+	} else {
+	  p->ctrl_err = -line_center(p->line_type[0]);
+	}
 	p->ctrl_der = p->ctrl_err - p->ctrl_err_last;
 	p->ctrl_out = KP_FOLLOWLINE * p->ctrl_err + KD_FOLLOWLINE * p->ctrl_der;
-        
-        p->motorspeed_l += p->ctrl_out;
-        p->motorspeed_r -= p->ctrl_out;
+ 
+	p->motorspeed_l += p->ctrl_out;
+	p->motorspeed_r -= p->ctrl_out;
         
       }
       
@@ -618,17 +801,16 @@ void update_motcon(motiontype *p) {
         
       } else {
 
-        p->motorspeed_l = p->speedcmd;
-        p->motorspeed_r = p->speedcmd;
-	
+	p->motorspeed_l = p->speedcmd;
+	p->motorspeed_r = p->speedcmd;
+
 	p->ctrl_err_last = p->ctrl_err;
 	p->ctrl_err = p->wall_dist - ir_distance(p->ir_number);
-	printf("(%f)\n", p->ctrl_err);
 	p->ctrl_der = p->ctrl_err - p->ctrl_err_last;
 	p->ctrl_out = KP_FOLLOWWALL * p->ctrl_err + KD_FOLLOWWALL * p->ctrl_der;
-        
-        p->motorspeed_l += p->ctrl_out;
-        p->motorspeed_r -= p->ctrl_out;
+
+	p->motorspeed_l += p->ctrl_out;
+	p->motorspeed_r -= p->ctrl_out;
         
       }
       
@@ -682,6 +864,8 @@ void update_motcon(motiontype *p) {
 
 }
 
+/*** MOTION CONTROL FUNCTIONS ***/
+
 int fwd(double dist, double speed, int time) {
   if (time == 0) {
     mot.cmd = mot_move;
@@ -693,12 +877,13 @@ int fwd(double dist, double speed, int time) {
   }
 }
 
-int followline(char line_type, double dist, double speed, int time) {
+int followline(char line_type[], double dist, double speed, int time) {
   if (time == 0) {
     mot.cmd = mot_followline;
     mot.speedcmd = speed;
     mot.dist = dist;
-    mot.line_type = line_type;
+    mot.line_type[0] = line_type[0];
+    mot.line_type[1] = line_type[1];
     return 0;
   } else {
     return mot.finished;
@@ -739,20 +924,22 @@ void sm_update(smtype *p) {
 
 /*** LINE SENSOR FUNCTIONS ***/
 
-double line_center(char line_type) {
+double line_center(char line_color) {
 
   int i;
   double intensity;
   double num = 0.0, den = 0.0;
-  /* Line sensor calibrations for SMR 9 */
+  
+  /* Line sensor values for SMR 9 */
   /*const double min[8] = {49.7129, 50.0733, 50.1517, 49.8031, 49.5481, 49.8077, 49.6494, 52.5971};
   const double max[8] = {58.6394, 60.3545, 66.0494, 59.5392, 58.8640, 59.1455, 60.1955, 81.7896};*/
-  /* Line sensor calibrations for simulator */
+  
+  /* Line sensor values for simulation */
   const double min[8] = {85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000};
   const double max[8] = {255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000};
 
   for (i = 0; i < 8; i++) {
-    if (line_type == 'w') {
+    if (line_color == 'w') {
       intensity = ((double)(linesensor->data[i]) - min[i]) / (max[i] - min[i]);
     } else {
       intensity = 1.0 - ((double)(linesensor->data[i]) - min[i]) / (max[i] - min[i]);
@@ -765,22 +952,17 @@ double line_center(char line_type) {
 
 }
 
-/*** IR SENSOR FUNCTIONS ***/
-
-double ir_distance(int ir_number) {
-  
-  const double ka[5] = {14.2600, 13.5608, 13.4456, 14.0818, 13.5900}; // 0 and 4 not calibrated!
-  const double kb[5] = {57.4200, 38.1084, 64.3544, 55.2223, 72.6000}; // 0 and 4 not calibrated!
-  
-  return ka[ir_number] / ((double)(irsensor->data[ir_number]) - kb[ir_number]);
-  
-}
-
 char line_color(int line_number) {
   
-  double blim[8] = {53.2119, 54.4847, 57.6007, 53.7704, 53.1544, 53.5702, 54.0679, 66.6741};
+  /* Line sensor limits for robot (SMR 9) */
   /*double wlim[8] = {58.2510, 59.2777, 62.9864, 58.7009, 58.0611, 58.1362, 59.1064, 73.4506}; // White-white*/
-  double wlim[8] = {56.8812, 58.2390, 62.2036, 57.5726, 56.9525, 57.2897, 58.0907, 73.4007}; // Dirty-white
+  /*double wlim[8] = {56.8812, 58.2390, 62.2036, 57.5726, 56.9525, 57.2897, 58.0907, 73.4007}; // Dirty-white
+  double blim[8] = {53.2119, 54.4847, 57.6007, 53.7704, 53.1544, 53.5702, 54.0679, 66.6741};*/
+  
+  /* Line sensor limits for simulation */
+  double wlim[8] = {198.3333, 198.3333, 198.3333, 198.3333, 198.3333, 198.3333, 198.3333, 198.3333};
+  double blim[8] = {141.6667, 141.6667, 141.6667, 141.6667, 141.6667, 141.6667, 141.6667, 141.6667};
+  
   
   if ((double)(linesensor->data[line_number]) > wlim[line_number]) {
     return 'w';
@@ -789,5 +971,36 @@ char line_color(int line_number) {
   } else {
     return 'f';
   }
+  
+}
+
+int crossing_black_line(motiontype *p) {
+  
+  int i, current, count = 0;
+  
+  for (i = 0; i < 8; i++) {
+    current = line_color(i);
+    if ((current == 'b') && (p->line_colors[i] == current)) {
+      count++;
+    }
+    p->line_colors[i] = current;
+  }
+  
+  if (count > 5) {
+    return 1;
+  } else {
+    return 0;
+  }
+
+}
+
+/*** IR SENSOR FUNCTIONS ***/
+
+double ir_distance(int ir_number) {
+  
+  const double ka[5] = {14.2600, 13.5608, 13.4456, 14.0818, 13.5900};
+  const double kb[5] = {57.4200, 38.1084, 64.3544, 55.2223, 72.6000};
+  
+  return ka[ir_number] / ((double)(irsensor->data[ir_number]) - kb[ir_number]);
   
 }
