@@ -200,7 +200,17 @@ enum {
   ms_looseGateFwd1,
   ms_looseGateFwd2,
   ms_looseGateTurn1,
-  ms_looseGateFwd3
+  ms_looseGateFwd3,
+  ms_looseGateTurn2,
+  ms_looseGateFwd4,
+  ms_looseGateTurn3,
+  ms_looseGateFwd5,
+  ms_looseGateFwd6,
+  ms_looseGateTurn4,
+  ms_looseGateFwd7,
+  ms_looseGateFwd8,
+  ms_looseGateTurn5,
+  ms_wallFwd1
 };
 
 int main()
@@ -503,7 +513,7 @@ int main()
       break;
       
       case ms_looseGateFwd2:
-	if (followline("bm",0.70,0.3,mission.time)) {
+	if (followline("bm",0.65,0.3,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_looseGateTurn1;
 	}
@@ -516,7 +526,73 @@ int main()
       break;
       
       case ms_looseGateFwd3:
-	if (fwd(0.255,0.3,mission.time)) {
+	if (fwd(1.00,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_looseGateTurn2;
+	}
+      break;
+      
+      case ms_looseGateTurn2:
+	if (turn(M_PI/2.0, 0.3, mission.time)) {
+	  mission.state=ms_looseGateFwd4;
+	}
+      break;
+      
+      case ms_looseGateFwd4:
+	if (fwd(0.70,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_looseGateTurn3;
+	}
+      break;
+      
+      case ms_looseGateTurn3:
+	if (turn(M_PI/2.0, 0.3, mission.time)) {
+	  mission.state=ms_looseGateFwd5;
+	}
+      break;
+      
+      case ms_looseGateFwd5:
+	if (fwd(2.00,0.3,mission.time) || crossingblackline) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_looseGateFwd6;
+	}
+      break;
+      
+      case ms_looseGateFwd6:
+	if (fwd(0.235,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_looseGateTurn4;
+	}
+      break;
+      
+      case ms_looseGateTurn4:
+	if (turn(M_PI/2.0, 0.3, mission.time)) {
+	  mission.state=ms_looseGateFwd7;
+	}
+      break;
+      
+      case ms_looseGateFwd7:
+	if (followline("bm",1.00,0.3,mission.time) || crossingblackline) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_looseGateFwd8;
+	}
+      break;
+      
+      case ms_looseGateFwd8:
+	if (fwd(0.235,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_looseGateTurn5;
+	}
+      break;
+      
+      case ms_looseGateTurn5:
+	if (turn(M_PI/2.0, 0.3, mission.time)) {
+	  mission.state=ms_wallFwd1;
+	}
+      break;
+      
+      case ms_wallFwd1:
+	if (followline("bm",2.00,0.3,mission.time) || laserpar[0] < 0.30) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_end;
 	}
