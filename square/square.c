@@ -26,13 +26,15 @@
 
 /* PD motion controller parameters */
 #define KP_FWD 0.01
-#define KP_FOLLOWLINE 0.2
+#define KP_FOLLOWLINE 0.25
 #define KD_FOLLOWLINE 0.1
-#define KP_FOLLOWWALL 0.5
-#define KD_FOLLOWWALL 0.01
+#define KP_FOLLOWWALL 1.0
+#define KD_FOLLOWWALL 0.1
 
 /* Parameters for line following */
-#define FOLLOWLINE_OFFSET 1.0
+#define FOLLOWLINE_OFFSET_R 0.25
+#define FOLLOWLINE_OFFSET_L 0.50
+
 
 struct xml_in *xmldata;
 struct xml_in *xmllaser;
@@ -75,14 +77,19 @@ getoutputref(const char *sym_name, symTableElement *tab) {
 #define CORRECTION 1.0 */
 
 /* Simulator odometry parameters */
-#define WHEEL_SEPARATION 0.26
+/*#define WHEEL_SEPARATION 0.26
 #define DELTA_M 0.00010245
-#define CORRECTION 1.0
+#define CORRECTION 1.0*/
 
 /* Robot (SMR 9) parameters */
 /*#define WHEEL_SEPARATION 0.261930
 #define DELTA_M 0.000103
 #define CORRECTION 1.000449*/
+
+/* Robot (SMR 15) parameters */
+#define WHEEL_SEPARATION 0.267439
+#define DELTA_M 0.000103
+#define CORRECTION 1.001574
 
 /* Odometry corrections */
 #define CL (DELTA_M / CORRECTION)
@@ -131,7 +138,7 @@ typedef struct {
   double startpos, startth;
   double ctrl_err, ctrl_err_last, ctrl_der, ctrl_out;
   double wall_dist;
-  char line_colors[8];
+  char line_colors_b[8], line_colors_w[8];
 } motiontype;
 
 enum {
@@ -148,11 +155,13 @@ int fwd(double dist, double speed, int time);
 int followline(char line_type[], double dist, double speed, int time);
 int followwall(int ir_number, double dist, double speed, int time);
 int turn(double angle, double speed, int time);
+int wait(double wait_time, int time);
 
 double line_center(char line_color);
 double ir_distance(int ir_number);
 char line_color(int line_number);
 int crossing_black_line(motiontype *p);
+int crossing_white_line(motiontype *p);
 
 typedef struct {
   int state, oldstate;
@@ -247,7 +256,8 @@ enum {
 int main()
 {
   int running, arg, time = 0, i;
-  int crossingblackline = 0;
+  int crossingblackline = 0; 
+  //int crossingwhiteline = 0;
   int n = 0;
   /*double angle = 0;*/
   /*double dist = 0;
@@ -387,6 +397,7 @@ int main()
     odo.right_enc = renc->data[0];
     
     crossingblackline = crossing_black_line(&mot);
+    //crossingwhiteline = crossing_white_line(&mot);
     //drivendist = mot.drivendist;
     
     update_odo(&odo);
@@ -569,46 +580,13 @@ int main()
 	  mission.state=ms_looseGateFwd5;
 	}
       break;
-      
-      /*case ms_looseGateFwd4:
-	if (fwd(0.70,0.3,mission.time)) {
-	  mot.cmd = mot_stop;
-	  mission.state=ms_looseGateTurn3;
-	}
-      break;
-      
-      case ms_looseGateTurn3:
-	if (turn(M_PI/2.0, 0.3, mission.time)) {
-	  mission.state=ms_looseGateFwd5;
-	}
-      break;*/
-      
+ 
       case ms_looseGateFwd5:
 	if (fwd(2.00,0.3,mission.time) || crossingblackline) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_looseGateFwd8;
 	}
       break;
-      
-      /*case ms_looseGateFwd6:
-	if (fwd(0.235,0.3,mission.time)) {
-	  mot.cmd = mot_stop;
-	  mission.state=ms_looseGateTurn4;
-	}
-      break;
-      
-      case ms_looseGateTurn4:
-	if (turn(M_PI/2.0, 0.3, mission.time)) {
-	  mission.state=ms_looseGateFwd7;
-	}
-      break;
-      
-      case ms_looseGateFwd7:
-	if (followline("bm",1.00,0.3,mission.time) || crossingblackline) {
-	  mot.cmd = mot_stop;
-	  mission.state=ms_looseGateFwd8;
-	}
-      break;*/
       
       case ms_looseGateFwd8:
 	if (fwd(0.235,0.3,mission.time)) {
@@ -897,7 +875,7 @@ int main()
       break;
       
       case ms_followline:
-	if (followline("br",2.00,0.3,mission.time)) {mission.state=ms_end;}
+	if (followline("wm",4.00,0.3,mission.time) || crossingwhiteline) {mission.state=ms_end;}
       break;   
       
       case ms_end:
@@ -910,7 +888,7 @@ int main()
     /*switch (mission.state) {
       
       case ms_init:
-	mission.state= ms_followwall;      
+	if (wait(3, mission.time)) {mission.state= ms_followwall;}      
       break;
       
       case ms_followwall:
@@ -945,11 +923,11 @@ int main()
     /*for (i = 0; i < 8; i++) {
       printf("(%c)", line_color(i));
     }
-    printf("[%d]", crossingblackline);*/ 
-    /*for (i = 0; i < 10; i++) {
+    printf("[%d]", crossingblackline);
+    for (i = 0; i < 10; i++) {
       printf("(%f)", laserpar[i]);
-    }
-    printf("\n");*/
+    }*/
+    //printf("\n");
 
     /*  END OF MISSION  */
 
@@ -1053,7 +1031,7 @@ void update_motcon(motiontype *p) {
       case mot_followwall:
         p->startpos = (p->left_pos + p->right_pos) / 2;
         p->curcmd = mot_followwall;
-	p->wall_dist = ir_distance(p->ir_number);
+	p->wall_dist = laserpar[p->ir_number];
 	p->ctrl_err = 0.0;
         break;
 
@@ -1071,7 +1049,7 @@ void update_motcon(motiontype *p) {
   }
   
   p->drivendist = fabs((p->right_pos + p->left_pos) / 2.0 - p->startpos);
-  printf("(%f)\n", p->drivendist);
+  //printf("(%f)\n", p->drivendist);
 
   switch (p->curcmd) {
     
@@ -1126,9 +1104,9 @@ void update_motcon(motiontype *p) {
 
 	p->ctrl_err_last = p->ctrl_err;
 	if (p->line_type[1] == 'l') {
-	  p->ctrl_err = -FOLLOWLINE_OFFSET - line_center(p->line_type[0]);
+	  p->ctrl_err = -FOLLOWLINE_OFFSET_L - line_center(p->line_type[0]);
 	} else if (p->line_type[1] == 'r') {
-	  p->ctrl_err = FOLLOWLINE_OFFSET - line_center(p->line_type[0]);
+	  p->ctrl_err = FOLLOWLINE_OFFSET_R - line_center(p->line_type[0]);
 	} else {
 	  p->ctrl_err = -line_center(p->line_type[0]);
 	}
@@ -1156,9 +1134,12 @@ void update_motcon(motiontype *p) {
 	p->motorspeed_r = p->speedcmd;
 
 	p->ctrl_err_last = p->ctrl_err;
-	p->ctrl_err = p->wall_dist - ir_distance(p->ir_number);
+	p->ctrl_err = p->wall_dist - laserpar[p->ir_number];
+	printf("[%f][%f]", p->wall_dist, laserpar[p->ir_number]);
 	p->ctrl_der = p->ctrl_err - p->ctrl_err_last;
+	printf("[%f]", p->ctrl_err);
 	p->ctrl_out = KP_FOLLOWWALL * p->ctrl_err + KD_FOLLOWWALL * p->ctrl_der;
+	printf("[%f]\n", p->ctrl_out);
 
 	p->motorspeed_l += p->ctrl_out;
 	p->motorspeed_r -= p->ctrl_out;
@@ -1228,6 +1209,14 @@ int fwd(double dist, double speed, int time) {
   }
 }
 
+int wait(double wait_time, int time) {
+  if (time < wait_time * 100) {
+    return 0;
+  } else {
+    return 1;
+  }
+}
+
 int followline(char line_type[], double dist, double speed, int time) {
   if (time == 0) {
     mot.cmd = mot_followline;
@@ -1285,9 +1274,13 @@ double line_center(char line_color) {
   /*const double min[8] = {49.7129, 50.0733, 50.1517, 49.8031, 49.5481, 49.8077, 49.6494, 52.5971};
   const double max[8] = {58.6394, 60.3545, 66.0494, 59.5392, 58.8640, 59.1455, 60.1955, 81.7896};*/
   
+  /* Line sensor values for SMR 15 */
+  const double min[8] = {47.8166, 47.8304, 49.2446, 48.5621, 48.6193, 48.6982, 48.8462, 49.5325};
+  const double max[8] = {59.3748, 63.0730, 64.4773, 65.8383, 66.5010, 66.6174, 64.9901, 64.2327};
+  
   /* Line sensor values for simulation */
-  const double min[8] = {85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000};
-  const double max[8] = {255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000};
+  /*const double min[8] = {85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000};
+  const double max[8] = {255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000};*/
 
   for (i = 0; i < 8; i++) {
     if (line_color == 'w') {
@@ -1310,9 +1303,9 @@ char line_color(int line_number) {
   /*double wlim[8] = {56.8812, 58.2390, 62.2036, 57.5726, 56.9525, 57.2897, 58.0907, 73.4007}; // Dirty-white
   double blim[8] = {53.2119, 54.4847, 57.6007, 53.7704, 53.1544, 53.5702, 54.0679, 66.6741};*/
   
-  /* Line sensor limits for simulation */
-  double wlim[8] = {198.3333, 198.3333, 198.3333, 198.3333, 198.3333, 198.3333, 198.3333, 198.3333};
-  double blim[8] = {141.6667, 141.6667, 141.6667, 141.6667, 141.6667, 141.6667, 141.6667, 141.6667};
+  /* Line sensor limits for robot (SMR 15) */
+  double wlim[8] = {57.7473, 60.9861, 62.3360, 63.2629, 63.8169, 63.9373, 62.5387, 61.9276};
+  double blim[8] = {51.9682, 53.3648, 54.7196, 54.6248, 54.8761, 54.9777, 54.4667, 54.5775};
   
   
   if ((double)(linesensor->data[line_number]) > wlim[line_number]) {
@@ -1331,10 +1324,30 @@ int crossing_black_line(motiontype *p) {
   
   for (i = 0; i < 8; i++) {
     current = line_color(i);
-    if ((current == 'b') && (p->line_colors[i] == current)) {
+    if ((current == 'b') && (p->line_colors_b[i] == current)) {
       count++;
     }
-    p->line_colors[i] = current;
+    p->line_colors_b[i] = current;
+  }
+  
+  if (count > 5) {
+    return 1;
+  } else {
+    return 0;
+  }
+
+}
+
+int crossing_white_line(motiontype *p) {
+  
+  int i, current, count = 0;
+  
+  for (i = 0; i < 8; i++) {
+    current = line_color(i);
+    if ((current == 'w') && (p->line_colors_w[i] == current)) {
+      count++;
+    }
+    p->line_colors_w[i] = current;
   }
   
   if (count > 5) {
