@@ -196,7 +196,11 @@ enum {
   ms_boxGateFwd5,
   ms_boxGateFwd6,
   ms_boxGateFwd7,
-  ms_boxGateFwd8
+  ms_boxGateFwd8,
+  ms_looseGateFwd1,
+  ms_looseGateFwd2,
+  ms_looseGateTurn1,
+  ms_looseGateFwd3
 };
 
 int main()
@@ -360,7 +364,7 @@ int main()
 	if (followline("br",2.50,0.3,mission.time) || crossingblackline) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_moveBoxTurn1;
-	  printf("Distance to box: %f\n", (fabs(odo.y) + 0.255 + ir_distance(3)));
+	  printf("Distance to box: %f\n", (fabs(odo.y) + 0.255 + laserpar[4]));
 	}
       break;
       
@@ -478,14 +482,41 @@ int main()
       break;
       
       case ms_boxGateFwd7:
-	if (followline("br",0.25,0.3,mission.time)) {
+	if (followline("br",1.00,0.3,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_boxGateFwd8;
 	}
       break;
       
       case ms_boxGateFwd8:
-	if (followline("br",1.00,0.3,mission.time) || crossingblackline) {
+	if (followline("bm",1.00,0.3,mission.time) || crossingblackline) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_looseGateFwd1;
+	}
+      break;
+      
+      case ms_looseGateFwd1:
+	if (followline("bm",2.00,0.3,mission.time) || laserpar[0] < 0.65) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_looseGateFwd2;
+	}
+      break;
+      
+      case ms_looseGateFwd2:
+	if (followline("bm",0.70,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_looseGateTurn1;
+	}
+      break;
+      
+      case ms_looseGateTurn1:
+	if (turn(M_PI/2.0, 0.3, mission.time)) {
+	  mission.state=ms_looseGateFwd3;
+	}
+      break;
+      
+      case ms_looseGateFwd3:
+	if (fwd(0.255,0.3,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_end;
 	}
@@ -601,7 +632,10 @@ int main()
     /*for (i = 0; i < 8; i++) {
       printf("(%c)", line_color(i));
     }
-    printf("[%d]", crossingblackline);
+    printf("[%d]", crossingblackline);*/ 
+    /*for (i = 0; i < 10; i++) {
+      printf("(%f)", laserpar[i]);
+    }
     printf("\n");*/
 
     /*  END OF MISSION  */
