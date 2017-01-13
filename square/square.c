@@ -125,7 +125,7 @@ typedef struct {
   /* Parameters */
   double w;
   /* Outputs */
-  double motorspeed_l, motorspeed_r;
+  double motorspeed_l, motorspeed_r, drivendist;
   int finished;
   /* Internal Variables */
   double startpos, startth;
@@ -210,7 +210,23 @@ enum {
   ms_looseGateFwd7,
   ms_looseGateFwd8,
   ms_looseGateTurn5,
-  ms_wallFwd1
+  ms_wallFwd1,
+  ms_wallFwd2,
+  ms_wallTurn1,
+  ms_wallFollow1,
+  ms_wallFwd3,
+  ms_wallTurn2,
+  ms_wallFwd4,
+  ms_wallTurn3,
+  ms_wallFollow2,
+  ms_wallFwd5,
+  ms_wallFwd5a,
+  ms_wallTurn4,
+  ms_wallFwd6,
+  ms_whiteFwd1,
+  ms_whiteTurn1,
+  ms_whiteFL1,
+  ms_whiteFwd2
 };
 
 int main()
@@ -356,6 +372,7 @@ int main()
     odo.right_enc = renc->data[0];
     
     crossingblackline = crossing_black_line(&mot);
+    //drivendist = mot.drivendist;
     
     update_odo(&odo);
 
@@ -533,12 +550,12 @@ int main()
       break;
       
       case ms_looseGateTurn2:
-	if (turn(M_PI/2.0, 0.3, mission.time)) {
-	  mission.state=ms_looseGateFwd4;
+	if (turn(-M_PI/2.0, 0.3, mission.time)) {
+	  mission.state=ms_looseGateFwd5;
 	}
       break;
       
-      case ms_looseGateFwd4:
+      /*case ms_looseGateFwd4:
 	if (fwd(0.70,0.3,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_looseGateTurn3;
@@ -549,16 +566,16 @@ int main()
 	if (turn(M_PI/2.0, 0.3, mission.time)) {
 	  mission.state=ms_looseGateFwd5;
 	}
-      break;
+      break;*/
       
       case ms_looseGateFwd5:
 	if (fwd(2.00,0.3,mission.time) || crossingblackline) {
 	  mot.cmd = mot_stop;
-	  mission.state=ms_looseGateFwd6;
+	  mission.state=ms_looseGateFwd8;
 	}
       break;
       
-      case ms_looseGateFwd6:
+      /*case ms_looseGateFwd6:
 	if (fwd(0.235,0.3,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_looseGateTurn4;
@@ -576,7 +593,7 @@ int main()
 	  mot.cmd = mot_stop;
 	  mission.state=ms_looseGateFwd8;
 	}
-      break;
+      break;*/
       
       case ms_looseGateFwd8:
 	if (fwd(0.235,0.3,mission.time)) {
@@ -592,7 +609,114 @@ int main()
       break;
       
       case ms_wallFwd1:
-	if (followline("bm",2.00,0.3,mission.time) || laserpar[0] < 0.30) {
+	if (followline("bm",2.00,0.3,mission.time) || (laserpar[0] < 0.30)) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_wallFwd2;
+	}
+      break;
+      
+      case ms_wallFwd2:
+	if (followline("bm",0.65,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_wallTurn1;
+	}
+      break;
+      
+      case ms_wallTurn1:
+	if (turn(M_PI/2.0, 0.3, mission.time)) {
+	  mission.state=ms_wallFollow1;
+	}
+      break;
+      
+      case ms_wallFollow1:
+	if (followwall(0,2.00,0.3,mission.time) || laserpar[0] > 0.60) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_wallFwd3;
+	}
+      break;
+      
+      case ms_wallFwd3:
+	if (fwd(0.40,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_wallTurn2;
+	}
+      break;
+      
+      case ms_wallTurn2:
+	if (turn(M_PI/2.0, 0.3, mission.time)) {
+	  mission.state=ms_wallFwd4;
+	}
+      break;
+      
+      case ms_wallFwd4:
+	if (fwd(0.65,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_wallTurn3;
+	}
+      break;
+      
+      case ms_wallTurn3:
+	if (turn(M_PI/2.0, 0.3, mission.time)) {
+	  mission.state=ms_wallFollow2;
+	}
+      break;
+      
+      case ms_wallFollow2:
+	if (followwall(0,2.00,0.3,mission.time) || laserpar[0] > 0.60) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_wallFwd5;
+	}
+      break;
+      
+      case ms_wallFwd5:
+	if (fwd(0.50,0.3,mission.time) || crossingblackline) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_wallFwd5a;
+	}
+      break;
+      
+      case ms_wallFwd5a:
+	if (fwd(0.235,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_wallTurn4;
+	}
+      break;
+      
+      case ms_wallTurn4:
+	if (turn(M_PI/2.0, 0.3, mission.time)) {
+	  mission.state=ms_wallFwd6;
+	}
+      break;
+      
+      case ms_wallFwd6:
+	if (followline("bm",2.00,0.3,mission.time) || crossingblackline) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_whiteFwd1;
+	}
+      break;
+      
+      case ms_whiteFwd1:
+	if (fwd(0.50,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_whiteTurn1;
+	}
+      break;
+      
+      case ms_whiteTurn1:
+	if (turn(M_PI/2.0, 0.3, mission.time)) {
+	  mission.state=ms_whiteFL1;
+	}
+      break;
+      
+      case ms_whiteFL1:
+	if (followline("wm",2.74,0.3,mission.time)) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_whiteFwd2;
+	}
+      break;
+      
+      case ms_whiteFwd2:
+	if (fwd(0.50,0.3,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_end;
 	}
@@ -821,6 +945,7 @@ void update_motcon(motiontype *p) {
         break;
 
       case mot_turn:
+        p->startpos = (p->left_pos + p->right_pos) / 2;
         p->th_ref = p->th + p->angle; 
         p->startth = p->th;
         p->curcmd = mot_turn;
@@ -831,6 +956,9 @@ void update_motcon(motiontype *p) {
     p->cmd = 0;
 
   }
+  
+  p->drivendist = fabs((p->right_pos + p->left_pos) / 2.0 - p->startpos);
+  printf("(%f)\n", p->drivendist);
 
   switch (p->curcmd) {
     
