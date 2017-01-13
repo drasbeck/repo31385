@@ -26,10 +26,10 @@
 
 /* PD motion controller parameters */
 #define KP_FWD 0.01
-#define KP_FOLLOWLINE 0.25
-#define KD_FOLLOWLINE 0.1
-#define KP_FOLLOWWALL 1.0
-#define KD_FOLLOWWALL 0.1
+#define KP_FOLLOWLINE 0.2
+#define KD_FOLLOWLINE 0.2
+#define KP_FOLLOWWALL 0.9
+#define KD_FOLLOWWALL 0.5
 
 /* Parameters for line following */
 #define FOLLOWLINE_OFFSET_R 0.25
@@ -405,6 +405,7 @@ int main()
     /*** MISSION STATE MACHINE ***/
     
     sm_update(&mission);
+    printf("Mission#: %d\n", mission.state);
     
     /* Track mission */
     switch (mission.state) {
@@ -414,7 +415,7 @@ int main()
       break;
       
       case ms_measBox:
-	if (followline("br",2.50,0.3,mission.time) || crossingblackline) {
+	if (followline("br",2.50,0.3,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_moveBoxTurn1;
 	  printf("Distance to box: %f\n", (fabs(odo.y) + 0.255 + laserpar[4]));
@@ -436,7 +437,7 @@ int main()
       break;
       
       case ms_moveBoxFwd2:
-	if (fwd(0.255,0.3,mission.time)) {
+	if (fwd(0.235,0.3,mission.time)) {
 	  mot.cmd = mot_stop;
 	  n--;
 	  if (n == 0) {
@@ -454,7 +455,7 @@ int main()
       break;
       
       case ms_moveBoxFollow1:
-	if (followline("bm",1.25,0.3,mission.time) || crossingblackline) {
+	if (followline("bm",3.00,0.3,mission.time) || crossingblackline) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_moveBoxFwd3;
 	}
@@ -488,7 +489,7 @@ int main()
       break;
       
       case ms_boxGateFwd2:
-	if (fwd(0.255,0.3,mission.time)) {
+	if (fwd(0.235,0.3,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_boxGateTurn2;
 	}
@@ -508,27 +509,27 @@ int main()
       break;
       
       case ms_boxGateFwd4:
-	if (fwd(0.255,0.3,mission.time)) {
+	if (fwd(0.235,0.2,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_boxGateTurn3;
 	}
       break;
       
       case ms_boxGateTurn3:
-	if (turn(M_PI/2.0, 0.3, mission.time)) {
+	if (turn(M_PI/2.0, 0.2, mission.time)) {
 	  mission.state=ms_boxGateFwd5;
 	}
       break;
       
       case ms_boxGateFwd5:
-	if (followline("bm",0.50,0.3,mission.time) || crossingblackline) {
+	if (followline("bm",0.50,0.2,mission.time) || crossingblackline) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_boxGateFwd6;
 	}
       break;
       
       case ms_boxGateFwd6:
-	if (fwd(0.10,0.3,mission.time)) {
+	if (fwd(0.10,0.2,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_boxGateFwd7;
 	}
@@ -622,7 +623,7 @@ int main()
       break;
       
       case ms_wallFollow1:
-	if (followwall(0,2.00,0.3,mission.time) || laserpar[0] > 0.60) {
+	if (fwd(2.50,0.3,mission.time) || laserpar[0] > 0.60) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_wallFwd3;
 	}
@@ -650,19 +651,19 @@ int main()
       
       case ms_wallTurn3:
 	if (turn(M_PI/2.0, 0.3, mission.time)) {
-	  mission.state=ms_wallFollow2;
-	}
-      break;
-      
-      case ms_wallFollow2:
-	if (followwall(0,2.00,0.3,mission.time) || laserpar[0] > 0.60) {
-	  mot.cmd = mot_stop;
 	  mission.state=ms_wallFwd5;
 	}
       break;
       
+      /*case ms_wallFollow2:
+	if (followwall(0,2.00,0.3,mission.time) || laserpar[0] > 0.60) {
+	  mot.cmd = mot_stop;
+	  mission.state=ms_wallFwd5;
+	}
+      break;*/
+      
       case ms_wallFwd5:
-	if (fwd(0.50,0.3,mission.time) || crossingblackline) {
+	if (fwd(2.50,0.3,mission.time) || crossingblackline) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_wallFwd5a;
 	}
