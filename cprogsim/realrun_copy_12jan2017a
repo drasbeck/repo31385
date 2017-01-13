@@ -1,0 +1,80 @@
+%DISTANCE TO BOX
+
+laser "scanpush cmd='zoneobst'"
+inity=$odoy
+followline "br" :($drivendist > 2.5)
+stop
+endy=$odoy
+wait 1
+distancebox = $l4
+wait 1
+totaldistance =  distancebox+abs(endy-inity)+0.255
+log "totaldistance"
+
+
+%MOVE BOX AND GO THROUGH GATES
+
+turn 90
+drive @v 0.2 :($crossingblackline > 0)
+fwd 0.1
+drive @v 0.2 :($crossingblackline > 0)
+fwd 0.235
+turn -90
+ignoreobstacles
+followline "bm" :($crossingblackline > 0)
+ignoreobstacles
+fwd 0.12
+fwd -1.1
+turn -90
+drive :($crossingblackline > 0)
+stop
+fwd 0.235
+turn 90
+followline "bm" :($crossingblackline > 0)
+fwd 0.235
+turn 90
+followline "bm" :($crossingblackline > 0)
+followline "br" :($drivendist > 1)
+
+
+%GATE ON THE LOOSE
+
+
+
+
+%WALL GATES
+
+
+
+%WHITE LINE
+
+followline "bm" :($crossingblackline > 0)
+drive @v0.1  :($crossingwhiteline > 0)
+fwd 0.235 @v0.2
+turn 90
+followline "wm" :($crossingblackline > 0)
+fwd 0.1
+followline "bm" :($crossingblackline > 0) % this crossing should be at the middle of the garage
+
+
+%GARAGE
+
+fwd .85 @v.5
+fwd 0 @v.2
+turn -90
+fwd .8 @v.5
+turn -150
+ignoreobstacles
+fwd .5 @v.2
+turn 60
+ignoreobstacles
+drive :($crossingblackline > 0)
+ignoreobstacles
+fwd .235
+turn 90
+ignoreobstacles
+followline "bm" :($irdistfrontmiddle < .3)
+stop
+
+
+
