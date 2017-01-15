@@ -424,7 +424,7 @@ int main()
       case ms_measBox:
 	if (followline("br",2.50,0.3,mission.time)) {
 	  mot.cmd = mot_stop;
-	  mission.state=ms_end;//ms_moveBoxTurn1;
+	  mission.state=ms_moveBoxTurn1;
 	  boxdist = fabs(odo.y) + 0.255 + laserpar[4] - 0.0526;
 	  printf("Distance to box: %f\n", boxdist);
 	}
