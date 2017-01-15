@@ -1,0 +1,117 @@
+%DISTANCE TO BOX
+
+inity=$odoy
+followline "br" :($drivendist > 1)
+stop
+endy=$odoy
+laser "scanpush cmd='zoneobst'"
+wait 1
+distancebox = $l4
+wait 1
+totaldistance =  distancebox+abs(endy-inity)+0.255
+log "totaldistance"
+
+
+%MOVE BOX AND GO THROUGH GATES
+
+back=(endy-inity)
+fwd back
+followline "bl" :($crossingblackline > 0)
+fwd 0.235
+turn -90
+ignoreobstacles
+followline "bm" :($irdistright < 0.9)
+idist = $odoy
+ignoreobstacles
+followline "bm" :($crossingblackline > 0)
+ignoreobstacles
+followline "bm" :($irdistleft < 0.9)
+fdist = $odoy
+back2=fdist-idist
+fwd back2
+fwd -0.5
+turn -90
+drive :($crossingblackline > 0)
+stop
+fwd 0.235
+turn 90
+followline "bm" :($crossingblackline > 0)
+fwd 0.235
+turn 90
+followline "bm" :($crossingblackline > 0)
+followline "br" :($drivendist > 1)
+
+
+%GATE ON THE LOOSE
+
+followline "bm" :($irdistleft < 0.9)
+fwd 0.44
+turn 90
+drive :($irdistleft < 0.9)
+fwd 0.6
+turn 90
+fwd 0.42
+turn 90
+drive :($crossingblackline > 0)
+fwd 0.235
+turn 90
+
+
+%WALL GATES
+
+drive :($crossingblackline > 0)
+fwd 0.235
+turn 90
+followline "bm" :($irdistright < 0.2)
+fwd 0.6
+turn 90
+fwd 0.2
+followwall "l" 0.25 :($irdistleft > 0.8)
+fwd 0.44
+turn 90
+drive :($irdistright < 0.9)
+fwd 0.6
+turn 90
+fwd 0.2
+followwall "l" 0.25 :($irdistleft > 0.8)
+fwd 0.44
+turn 90
+
+%WHITE LINE
+
+followline "bm" :($crossingblackline > 0)
+fwd 0.1
+followline "bm" :($blacklinefound == 0)
+fwd 0.235
+turn 90
+followline "wm" :($lineraw0 > 100 & $lineraw7 > 100)
+followline "bm" :($crossingblackline > 0)
+fwd 0.235
+turn -90
+
+
+%GARAGE
+
+followline "bm" :($irdistfrontmiddle < 0.9)
+turn -90
+drive :($irdistleft > 0.5)
+fwd 0.4
+turn 90
+drive :($drivendist > 0.1)
+drive :($irdistleft > 0.5)
+fwd 0.4
+turn 90
+drive :($drivendist > 0.1)
+drive :($irdistleft > 0.5)
+fwd 0.4
+turn 90
+drive :($drivendist > 0.1)
+distleft = $irdistleft
+drive :($irdistleft > distleft)
+fwd 0.4
+turnr 0.2 90
+drive :($crossingblackline > 0)
+fwd 0.235
+turn 90
+followline "bm" :($irdistfrontmiddle < 0.2)
+
