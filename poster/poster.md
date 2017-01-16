@@ -63,4 +63,4 @@ The state machine is implemented to ... ?
 ### Object detection
 Because of unstable results with the IR-sensors on the SMR, we chose to use the laser sensor instead.
 ### Line detection
-After calibrating the linesensor to the values of the floor plus black and white tape, and subjecting the data to a linear transformation, so every value is between 0 and 1, it was fairly straight forward to implement a center of mass algorithem to make the SMR.
+After calibrating the linesensor to the values of the floor plus black and white tape, and subjecting the data to a linear transformation, so values land between 0 and 1, it was fairly straight forward to implement a center of mass algorithm to make the SMR. Here we depict the SMR following a line, with the calculated center of mass marked.
