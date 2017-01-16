@@ -37,8 +37,8 @@
 #define FOLLOWLINE_OFFSET_R 0.25
 #define FOLLOWLINE_OFFSET_L 0.50
 
-double datai[8] = { 0 };
-double dataxc = 0;
+//double data_I[8] = { 0 };
+//double data_xc = 0;
 
 struct xml_in *xmldata;
 struct xml_in *xmllaser;
@@ -420,6 +420,7 @@ int main()
     /*switch (mission.state) {
       
       case ms_init:
+//	mission.state = ms_whiteFL1;
 	mission.state = ms_measBox;      
       break;
       
@@ -534,11 +535,11 @@ int main()
       case ms_boxGateFwd5:
 	if (followline("bm",0.50,0.2,mission.time) || crossingblackline) {
 	  mot.cmd = mot_stop;
-	  mission.state=ms_boxGateFwd6;
+	  mission.state=ms_boxGateFwd8;
 	}
       break;
       
-      case ms_boxGateFwd6:
+      *//*case ms_boxGateFwd6:
 	if (fwd(0.10,0.2,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_boxGateFwd7;
@@ -550,24 +551,24 @@ int main()
 	  mot.cmd = mot_stop;
 	  mission.state=ms_boxGateFwd8;
 	}
-      break;
+      break;*//*
       
       case ms_boxGateFwd8:
-	if (followline("bm",1.00,0.3,mission.time) || crossingblackline) {
+	if (followline("br",1.00,0.25,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_looseGateFwd1;
 	}
       break;
       
       case ms_looseGateFwd1:
-	if (followline("bm",2.00,0.3,mission.time) || laserpar[0] < 0.65) {
+	if (followline("bm",3.00,0.25,mission.time) || laserpar[0] < 0.65) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_looseGateFwd2;
 	}
       break;
       
       case ms_looseGateFwd2:
-	if (followline("bm",0.70,0.3,mission.time)) {
+	if (followline("bm",0.6,0.3,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_looseGateTurn1;
 	}
@@ -734,21 +735,21 @@ int main()
       break;
       
       case ms_whiteFL1:
-	if (followline("wm",4.00,0.25,mission.time) || crossingblackline) {
+	if (followline("wm",4.00,0.2,mission.time) || crossingblackline) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_whiteFwd2;
 	}
       break;
       
       case ms_whiteFwd2:
-	if (fwd(0.10,0.3,mission.time)) {
+	if (fwd(0.05,0.25,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_whiteFwd2a;
 	}
       break;
        
       case ms_whiteFwd2a:
-	if (fwd(1.00,0.3,mission.time) || crossingblackline) {
+	if (followline("bm",2.00,0.2,mission.time) || crossingblackline) {
 	  mot.cmd = mot_stop;
 	  gardist = laserpar[8];
 	  mission.state=ms_whiteFwd2b;
@@ -756,14 +757,14 @@ int main()
       break;
       
       case ms_whiteFwd2b:
-	if (fwd(0.85,0.3,mission.time)) {
+	if (fwd(.95,0.3,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_garTurn1;
 	}
       break;
       
       case ms_garTurn1:
-	if (turn(-M_PI/2.0, 0.3, mission.time)) {
+	if (turn(-M_PI/2.0, 0.25, mission.time)) {
 	  mission.state=ms_garFwd1;
 	}
       break;
@@ -776,7 +777,7 @@ int main()
       break;
       
       case ms_garTurn3:
-	if (turn((-150.0 * M_PI / 180.0), 0.3, mission.time)) {
+	if (turn((-150.0 * M_PI / 180.0), 0.35, mission.time)) {
 	  mission.state=ms_garFwd2;
 	}
       break;
@@ -789,7 +790,7 @@ int main()
       break;
       
       case ms_garTurn4:
-	if (turn((55.0 * M_PI / 180.0), 0.3, mission.time)) {
+	if (turn((60.0 * M_PI / 180.0), 0.3, mission.time)) {
 	  mission.state=ms_garFwd3;
 	}
       break;
@@ -883,7 +884,7 @@ int main()
       break;
       
       case ms_followline:
-	if (followline("bm",1.00,0.3,mission.time)) {mission.state=ms_end;}
+	if (followline("bm",2.00,0.3,mission.time)) {mission.state=ms_end;}
       break;   
       
       case ms_end:
@@ -920,17 +921,15 @@ int main()
     fprintf(log_file_p, "%g,", odo.th);
     /*for (i = 0; i < 10; i++) {
       fprintf(log_file_p, "%g,", laserpar[i]);
-    }
+    }*/
+    fprintf(log_file_p, "%g,", data_xc);
     for (i = 0; i < 8; i++) {
-      fprintf(log_file_p, "%g,", (double)(linesensor->data[i]));
+      //fprintf(log_file_p, "%g,", (double)(linesensor->data[i]));
+      fprintf(log_file_p, "%g,", data_I[i]));
     }
-    for (i = 0; i < 5; i++) {
+    /*for (i = 0; i < 5; i++) {
       fprintf(log_file_p, "%g,", ir_distance(i));
     }*/
-    fprintf(log_file_p, "%g,", dataxc);
-    for (i = 0; i < 8; i++) {
-      fprintf(log_file_p, "%g,", datai[i]);
-    }
     fprintf(log_file_p, "\n");
     
     /*for (i = 0; i < 8; i++) {
@@ -1312,9 +1311,10 @@ double line_center(char line_color) {
     }
     num += (-3.5 + (double)(i)) * intensity;
     den += intensity;
-    datai[i] = intensity;
+    data_I[i] = intensity;
   }
-  dataxc = num / den;
+
+  data_xc = num / den;
   return num / den;
 
 }
