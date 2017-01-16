@@ -12,5 +12,9 @@ figure;
 plot(data(:,5),data(:,6));
 
 figure
-[X,Y] = meshgrid(data(:,5),data(:,6))
-plot3(data(:,5),data(:,6),v)
+subplot(3,1,1)
+plot(data(:,5),t)
+subplot(3,1,2)
+plot(data(:,6),t)
+subplot(3,1,3)
+plot(wrapTo2Pi(data(:,7)),t)
