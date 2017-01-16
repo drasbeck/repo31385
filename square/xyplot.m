@@ -13,8 +13,8 @@ plot(data(:,5),data(:,6));
 
 figure
 subplot(3,1,1)
-plot(data(:,5),t)
+plot(t,data(:,5))
 subplot(3,1,2)
-plot(data(:,6),t)
+plot(t,data(:,6))
 subplot(3,1,3)
-plot(wrapTo2Pi(data(:,7)),t)
+plot(t,wrapToPi(data(:,7)))
