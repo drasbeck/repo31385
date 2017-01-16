@@ -57,4 +57,10 @@ Using the center of mass theory we created an algorithm for following a line:
     break;
 
 ## State machine
-The state machine is implemented to ...
+The state machine is implemented to ... ?
+
+## Sensor use
+### Object detection
+Because of unstable results with the IR-sensors on the SMR, we chose to use the laser sensor instead.
+### Line detection
+After calibrating the linesensor to the values of the floor plus black and white tape, and subjecting the data to a linear transformation, so every value is between 0 and 1, it was fairly straight forward to implement a center of mass algorithem to make the SMR.
