@@ -37,6 +37,8 @@
 #define FOLLOWLINE_OFFSET_R 0.25
 #define FOLLOWLINE_OFFSET_L 0.50
 
+double data_I[8] = { 0 };
+double data_xc = 0;
 
 struct xml_in *xmldata;
 struct xml_in *xmllaser;
@@ -415,7 +417,7 @@ int main()
     sm_update(&mission);
     
     /* Track mission */
-    switch (mission.state) {
+    /*switch (mission.state) {
       
       case ms_init:
 //	mission.state = ms_whiteFL1;
@@ -825,7 +827,7 @@ int main()
 	running=0;
       break;
       
-    }
+    }*/
 
     /*switch (mission.state)
     {
@@ -875,14 +877,14 @@ int main()
     
     }*/
     
-    /*switch (mission.state) {
+    switch (mission.state) {
       
       case ms_init:
 	mission.state= ms_followline;      
       break;
       
       case ms_followline:
-	if (followline("wm",4.00,0.2,mission.time) || crossingblackline) {mission.state=ms_end;}
+	if (followline("bm",2.00,0.3,mission.time)) {mission.state=ms_end;}
       break;   
       
       case ms_end:
@@ -890,7 +892,7 @@ int main()
 	running=0;
       break;
       
-    }*/
+    }
     
     /*switch (mission.state) {
       
@@ -910,22 +912,24 @@ int main()
     }*/
     
     /* Write to log file */
-    fprintf(log_file_p, "%f,", boxdist);
+    /*fprintf(log_file_p, "%f,", boxdist);
     fprintf(log_file_p, "%d,", mission.time);
     fprintf(log_file_p, "%g,", mot.motorspeed_l);
-    fprintf(log_file_p, "%g,", mot.motorspeed_r);
+    fprintf(log_file_p, "%g,", mot.motorspeed_r);*/
     fprintf(log_file_p, "%g,", odo.x);
     fprintf(log_file_p, "%g,", odo.y);
     fprintf(log_file_p, "%g,", odo.th);
-    for (i = 0; i < 10; i++) {
+    /*for (i = 0; i < 10; i++) {
       fprintf(log_file_p, "%g,", laserpar[i]);
-    }
+    }*/
+    fprintf(log_file_p, "%g,", data_xc);
     for (i = 0; i < 8; i++) {
-      fprintf(log_file_p, "%g,", (double)(linesensor->data[i]));
+      //fprintf(log_file_p, "%g,", (double)(linesensor->data[i]));
+      fprintf(log_file_p, "%g,", data_I[i]));
     }
-    for (i = 0; i < 5; i++) {
+    /*for (i = 0; i < 5; i++) {
       fprintf(log_file_p, "%g,", ir_distance(i));
-    }
+    }*/
     fprintf(log_file_p, "\n");
     
     /*for (i = 0; i < 8; i++) {
@@ -1307,8 +1311,10 @@ double line_center(char line_color) {
     }
     num += (-3.5 + (double)(i)) * intensity;
     den += intensity;
+    data_I[i] = intensity;
   }
 
+  data_xc = num / den;
   return num / den;
 
 }
