@@ -22,38 +22,39 @@ Using the center of mass theory we created an algorithm for following a line:
     case mot_followline:
       if ((p->right_pos + p->left_pos) / 2.0 - p->startpos > p->dist) {
 
-      p->finished = 1;
-      p->motorspeed_l = 0;
-      p->motorspeed_r = 0;
+        p->finished = 1;
+        p->motorspeed_l = 0;
+        p->motorspeed_r = 0;
 
       } else {
 
-      p->motorspeed_l = p->speedcmd;
-      p->motorspeed_r = p->speedcmd;
+        p->motorspeed_l = p->speedcmd;
+        p->motorspeed_r = p->speedcmd;
 
-      p->ctrl_err_last = p->ctrl_err;
+        p->ctrl_err_last = p->ctrl_err;
 
-      if (p->line_type[1] == 'l') {
-        p->ctrl_err = -FOLLOWLINE_OFFSET_L - line_center(p->line_type[0]);
-      } else if (p->line_type[1] == 'r') {
-        p->ctrl_err = FOLLOWLINE_OFFSET_R - line_center(p->line_type[0]);
-      } else {
-        p->ctrl_err = -line_center(p->line_type[0]);
-      }
+        if (p->line_type[1] == 'l') {
+          p->ctrl_err = -FOLLOWLINE_OFFSET_L - line_center(p->line_type[0]);
+        } else if (p->line_type[1] == 'r') {
+          p->ctrl_err = FOLLOWLINE_OFFSET_R - line_center(p->line_type[0]);
+        } else {
+          p->ctrl_err = -line_center(p->line_type[0]);
+        }
         
-      p->ctrl_der = p->ctrl_err - p->ctrl_err_last;
+        p->ctrl_der = p->ctrl_err - p->ctrl_err_last;
 
-      if (p->line_type[0] == 'w') {
-        p->ctrl_out = KP_FOLLOWLINE_W * p->ctrl_err + KD_FOLLOWLINE_W * p->ctrl_der;
-      } else {
-        p->ctrl_out = KP_FOLLOWLINE_B * p->ctrl_err + KD_FOLLOWLINE_B * p->ctrl_der;
-      }
+        if (p->line_type[0] == 'w') {
+          p->ctrl_out = KP_FOLLOWLINE_W * p->ctrl_err + KD_FOLLOWLINE_W * p->ctrl_der;
+        } else {
+          p->ctrl_out = KP_FOLLOWLINE_B * p->ctrl_err + KD_FOLLOWLINE_B * p->ctrl_der;
+        }
  
-      p->motorspeed_l += p->ctrl_out;
-      p->motorspeed_r -= p->ctrl_out;
+        p->motorspeed_l += p->ctrl_out;
+        p->motorspeed_r -= p->ctrl_out;
 
       }
 
     break;
 
-
+## State machine
+The state machine is implemented to ...
