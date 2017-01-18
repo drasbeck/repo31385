@@ -724,14 +724,14 @@ int main()
       break;
       
       case ms_whiteFL1:
-	if (followline("wm",2.74,0.3,mission.time)) {
+	if (followline("wm",2.70,0.3,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_whiteFwd2;
 	}
       break;
       
       case ms_whiteFwd2:
-	if (fwd(0.50,0.3,mission.time)) {
+	if (fwd(0.52,0.3,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_garTurn1;
 	}
