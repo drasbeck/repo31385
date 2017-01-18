@@ -306,7 +306,7 @@ int main()
     {
     case ms_init:
       n = 4;
-      dist = 3.0;
+      dist = 2.0;
       angle = -M_PI / 2.0; // minus M_PI for right turn
       mission.state = ms_fwd;
       break;

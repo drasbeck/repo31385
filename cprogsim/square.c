@@ -1071,7 +1071,7 @@ void update_motcon(motiontype *p) {
   }
   
   p->drivendist = fabs((p->right_pos + p->left_pos) / 2.0 - p->startpos);
-  printf("(%f)\n", p->drivendist);
+  //printf("(%f)\n", p->drivendist);
 
   switch (p->curcmd) {
     
@@ -1267,6 +1267,7 @@ int turn(double angle, double speed, int time) {
 void sm_update(smtype *p) {
   if (p->state != p->oldstate) {
     p->time = 0;
+    printf("Mission: %d\n", p->state);
     p->oldstate = p->state;
   } else {
     p->time++;

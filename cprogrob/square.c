@@ -565,7 +565,7 @@ int main()
       break;
       
       case ms_looseGateFwd2:
-	if (followline("bm",0.70,0.3,mission.time)) {
+	if (followline("bm",0.65,0.3,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_looseGateTurn1;
 	}
@@ -732,21 +732,21 @@ int main()
       break;
       
       case ms_whiteFL1:
-	if (followline("wm",4.00,0.25,mission.time) || crossingblackline) {
+	if (followline("wm",4.00,0.2,mission.time) || crossingblackline) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_whiteFwd2;
 	}
       break;
       
       case ms_whiteFwd2:
-	if (fwd(0.10,0.3,mission.time)) {
+	if (followline("bm",0.10,0.2,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_whiteFwd2a;
 	}
       break;
        
       case ms_whiteFwd2a:
-	if (fwd(1.00,0.3,mission.time) || crossingblackline) {
+	if (followline("bm",1.00,0.2,mission.time) || crossingblackline) {
 	  mot.cmd = mot_stop;
 	  gardist = laserpar[8];
 	  mission.state=ms_whiteFwd2b;
@@ -754,7 +754,7 @@ int main()
       break;
       
       case ms_whiteFwd2b:
-	if (fwd(0.85,0.3,mission.time)) {
+	if (fwd(0.95,0.3,mission.time)) {
 	  mot.cmd = mot_stop;
 	  mission.state=ms_garTurn1;
 	}
@@ -774,7 +774,7 @@ int main()
       break;
       
       case ms_garTurn3:
-	if (turn((-150.0 * M_PI / 180.0), 0.3, mission.time)) {
+	if (turn((-148.0 * M_PI / 180.0), 0.3, mission.time)) {
 	  mission.state=ms_garFwd2;
 	}
       break;

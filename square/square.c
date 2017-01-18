@@ -828,22 +828,22 @@ int main()
       
     }*/
 
-    /*switch (mission.state)
+    switch (mission.state)
     {
     case ms_init:
       n = 4;
-      dist = 3.0;
-      angle = -M_PI / 2.0;
+      //dist = 1.0;
+      //angle = -M_PI / 2.0;
       mission.state = ms_fwd;
       break;
 
     case ms_fwd:
-      if (fwd(dist, 0.3, mission.time))
+      if (fwd(1.0, 0.3, mission.time))
         mission.state = ms_turn;
       break;
 
     case ms_turn:
-      if (turn(angle, 0.3, mission.time))
+      if (turn(-M_PI / 2.0, 0.3, mission.time))
       {
         n = n - 1;
         if (n == 0)
@@ -857,7 +857,7 @@ int main()
       mot.cmd = mot_stop;
       running = 0;
       break;
-    }*/
+    }
 
     /*switch (mission.state) {
      
@@ -876,14 +876,14 @@ int main()
     
     }*/
     
-    switch (mission.state) {
+    /*switch (mission.state) {
       
       case ms_init:
 	mission.state= ms_followline;      
       break;
       
       case ms_followline:
-	if (followline("bm",1.00,0.3,mission.time)) {mission.state=ms_end;}
+	if (followline("bm",2.00,0.3,mission.time)) {mission.state=ms_end;}
       break;   
       
       case ms_end:
@@ -891,7 +891,7 @@ int main()
 	running=0;
       break;
       
-    }
+    }*/
     
     /*switch (mission.state) {
       
@@ -927,10 +927,10 @@ int main()
     for (i = 0; i < 5; i++) {
       fprintf(log_file_p, "%g,", ir_distance(i));
     }*/
-    fprintf(log_file_p, "%g,", dataxc);
+    /*fprintf(log_file_p, "%g,", dataxc);
     for (i = 0; i < 8; i++) {
       fprintf(log_file_p, "%g,", datai[i]);
-    }
+    }*/
     fprintf(log_file_p, "\n");
     
     /*for (i = 0; i < 8; i++) {
@@ -1032,7 +1032,7 @@ void update_motcon(motiontype *p) {
 
       case mot_move:
         p->startpos = (p->left_pos + p->right_pos) / 2;
-	p->th_ref = p->th;
+	//p->th_ref = p->th;
         p->curcmd = mot_move;
         break;
 
@@ -1051,7 +1051,7 @@ void update_motcon(motiontype *p) {
 
       case mot_turn:
         p->startpos = (p->left_pos + p->right_pos) / 2;
-        /*p->th_ref = p->th + p->angle;*/
+        p->th_ref = p->th + p->angle;
         p->startth = p->th;
         p->curcmd = mot_turn;
         break;
