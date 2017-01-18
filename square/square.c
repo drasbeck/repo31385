@@ -81,9 +81,9 @@ getoutputref(const char *sym_name, symTableElement *tab) {
 #define CORRECTION 1.0 */
 
 /* Simulator odometry parameters */
-/*#define WHEEL_SEPARATION 0.26
+#define WHEEL_SEPARATION 0.26
 #define DELTA_M 0.00010245
-#define CORRECTION 1.0*/
+#define CORRECTION 1.0
 
 /* Robot (SMR 9) parameters */
 /*#define WHEEL_SEPARATION 0.261930
@@ -91,9 +91,9 @@ getoutputref(const char *sym_name, symTableElement *tab) {
 #define CORRECTION 1.000449*/
 
 /* Robot (SMR 15) parameters */
-#define WHEEL_SEPARATION 0.267439
+/*#define WHEEL_SEPARATION 0.267439
 #define DELTA_M 0.000103
-#define CORRECTION 1.001574
+#define CORRECTION 1.001574*/
 
 /* Odometry corrections */
 #define CL (DELTA_M / CORRECTION)
@@ -828,7 +828,7 @@ int main()
       
     }*/
 
-    switch (mission.state)
+    /*switch (mission.state)
     {
     case ms_init:
       n = 4;
@@ -857,7 +857,7 @@ int main()
       mot.cmd = mot_stop;
       running = 0;
       break;
-    }
+    }*/
 
     /*switch (mission.state) {
      
@@ -876,7 +876,7 @@ int main()
     
     }*/
     
-    /*switch (mission.state) {
+    switch (mission.state) {
       
       case ms_init:
 	mission.state= ms_followline;      
@@ -891,7 +891,7 @@ int main()
 	running=0;
       break;
       
-    }*/
+    }
     
     /*switch (mission.state) {
       
@@ -1297,12 +1297,12 @@ double line_center(char line_color) {
   const double max[8] = {58.6394, 60.3545, 66.0494, 59.5392, 58.8640, 59.1455, 60.1955, 81.7896};*/
   
   /* Line sensor values for SMR 15 */
-  const double min[8] = {47.8166, 47.8304, 49.2446, 48.5621, 48.6193, 48.6982, 48.8462, 49.5325};
-  const double max[8] = {59.3748, 63.0730, 64.4773, 65.8383, 66.5010, 66.6174, 64.9901, 64.2327};
+  /*const double min[8] = {47.8166, 47.8304, 49.2446, 48.5621, 48.6193, 48.6982, 48.8462, 49.5325};
+  const double max[8] = {59.3748, 63.0730, 64.4773, 65.8383, 66.5010, 66.6174, 64.9901, 64.2327};*/
   
   /* Line sensor values for simulation */
-  /*const double min[8] = {85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000};
-  const double max[8] = {255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000};*/
+  const double min[8] = {85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000, 85.0000};
+  const double max[8] = {255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000, 255.0000};
 
   for (i = 0; i < 8; i++) {
     if (line_color == 'w') {
