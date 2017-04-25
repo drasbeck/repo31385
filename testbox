@@ -1,0 +1,41 @@
+%INIT
+laser "scanpush cmd='zoneobst'"
+wait 1
+initx = $odox
+inity = $odoy
+
+
+%AFTER BALLS
+%Go to point 11
+y0=$odoy
+eval $drivendist
+wait 0.1
+drive :($l8 > 2.5)
+wait 0.1
+y1=$drivendist
+y2=0.34202*$l8
+wait 0.1
+drive :($l8 > 2.5)
+y3=$drivendist
+
+%Go to point 11
+x0=$odox
+eval $drivendist
+wait 0.1
+drive :($l0 > 2.5)
+wait 0.1
+x1=$drivendist
+x2=0.34202*$l0
+wait 0.1
+drive :($l0 > 2.5)
+x3=$drivendist
+
+wait 1
+
+xf=x0-x1-x2-(x3/2)
+wait 0.1
+yf=y0-y1-y2-(y3/2)
+wait 0.1
+
+eval xf
+eval yf
